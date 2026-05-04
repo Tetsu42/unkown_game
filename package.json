@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "maki": "cd game && maki",
+    "dev": "cd game && maki dev",
+    "build": "cd game && maki build"
+  },
+  "dependencies": {
+    "@tialops/maki": "^1.1.0"
+  }
+}
