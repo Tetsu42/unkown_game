@@ -4,7 +4,7 @@ export default class GameScene extends Scene {
     preload() {
         super.preload()
         this.lia = this.maki.player('lia')
-        manager.map(this, 'default_map')
+        manager.map(this, 'default')
         manager.preload(this)
     }
 
