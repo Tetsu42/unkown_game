@@ -1,4 +1,5 @@
 import { Scene, manager } from '@tialops/maki'
+import GlitchEffect from '../effects/GlitchEffect.js'
 
 export default class GameScene extends Scene {
     preload() {
@@ -21,9 +22,28 @@ export default class GameScene extends Scene {
             up: Phaser.Input.Keyboard.KeyCodes.W,
             down: Phaser.Input.Keyboard.KeyCodes.S,
             left: Phaser.Input.Keyboard.KeyCodes.A,
-            right: Phaser.Input.Keyboard.KeyCodes.D
+            right: Phaser.Input.Keyboard.KeyCodes.D,
+            space: Phaser.Input.Keyboard.KeyCodes.SPACE // Pour tester le glitch
         })
 
+        // ===== EXEMPLES D'EFFETS GLITCH =====
+        
+        // Appui sur SPACE pour appliquer un glitch court
+        this.input.keyboard.on('keydown-SPACE', () => {
+            GlitchEffect.apply(this.lia.sprite, 300, 15)
+        })
+        
+        // Décommente pour appliquer un glitch au démarrage:
+        // GlitchEffect.apply(this.lia.sprite, 300, 10)
+        
+        // Décommente pour un glitch continu qui démarre au démarrage:
+        // this.glitchTimer = GlitchEffect.startContinuous(this.lia.sprite, 8)
+        
+        // Décommente pour tester l'effet RGB shift:
+        // GlitchEffect.applyRGBShift(this.lia.sprite, 500)
+        
+        // Décommente pour tester l'effet corruption:
+        // GlitchEffect.applyCorruption(this.lia.sprite, 600)
     }
 
     update() {
