@@ -18,7 +18,7 @@ export class GlitchEffect {
         const glitchSteps = Math.floor(duration / 30) // ~30ms par étape
         let step = 0
         
-        const glitchInterval = scene.time.addTimer({
+        const glitchInterval = scene.time.addEvent({
             delay: 30,
             callback: () => {
                 if (step >= glitchSteps) {
@@ -53,7 +53,7 @@ export class GlitchEffect {
         const originalX = sprite.x
         const originalY = sprite.y
         
-        return scene.time.addTimer({
+        return scene.time.addEvent({
             delay: 40,
             callback: () => {
                 sprite.x = originalX + (Math.random() - 0.5) * intensity
@@ -88,7 +88,7 @@ export class GlitchEffect {
         const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffffff]
         let colorIndex = 0
         
-        const rgbInterval = scene.time.addTimer({
+        const rgbInterval = scene.time.addEvent({
             delay: 50,
             callback: () => {
                 sprite.setTint(colors[Math.floor(Math.random() * colors.length)])

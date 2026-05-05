@@ -5,7 +5,7 @@ export default class GameScene extends Scene {
     preload() {
         super.preload()
         this.lia = this.maki.player('lia')
-        manager.map(this, 'default')
+        manager.map(this, 'room1')
         manager.preload(this)
     }
 
@@ -67,7 +67,7 @@ export default class GameScene extends Scene {
         this.dialogueText.setDepth(1001)
         this.dialogueText.setVisible(false)
 
-        this.dialogueHint = this.add.text(650, 588, 'Espace pour continuer', {
+        this.dialogueHint = this.add.text(650, 588, 'E pour continuer', {
             fontFamily: 'Arial',
             fontSize: '14px',
             color: '#cbd5e1'
@@ -90,6 +90,7 @@ export default class GameScene extends Scene {
         
         // Appui sur SPACE pour appliquer un glitch court
         this.input.keyboard.on('keydown-SPACE', () => {
+            console.log('Glitch applied!') 
             if (!this.dialogueActive) {
                 GlitchEffect.apply(this.lia.sprite, 300, 15)
             }
@@ -112,11 +113,27 @@ export default class GameScene extends Scene {
         // Décommente pour un glitch continu qui démarre au démarrage:
         // this.glitchTimer = GlitchEffect.startContinuous(this.lia.sprite, 8)
         
-        // Décommente pour tester l'effet RGB shift:
-        // GlitchEffect.applyRGBShift(this.lia.sprite, 500)
+        //effet RGB shift:
+        GlitchEffect.applyRGBShift(this.lia.sprite, 500)
         
-        // Décommente pour tester l'effet corruption:
+        //effet corruption:
         // GlitchEffect.applyCorruption(this.lia.sprite, 600)
+
+        // Lancer un glitch toutes les 10 secondes (10000 ms)
+        this.glitchRepeater = this.time.addEvent({
+            delay: 5000,
+            loop: true,
+            callback: () => {
+                if (!this.dialogueActive) {
+                    GlitchEffect.apply(this.lia.sprite, 300, 15)
+                }
+            }
+        })
+
+        // Nettoyage du timer à l'arrêt de la scène
+        this.events.on('shutdown', () => {
+            if (this.glitchRepeater) this.glitchRepeater.remove()
+        })
     }
 
     update() {
