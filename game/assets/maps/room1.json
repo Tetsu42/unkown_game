@@ -2,8 +2,8 @@
   "name": "room1",
   "tileset": "assets/rooms/room1.png",
   "tileSize": 16,
-  "mapWidth": 50,
-  "mapHeight": 50,
+  "mapWidth": 80,
+  "mapHeight": 80,
   "layers": {
     "floor": [
       [
