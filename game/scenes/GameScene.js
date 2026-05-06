@@ -13,8 +13,8 @@ export default class GameScene extends Scene {
         super.create()
         manager.create(this)
 
-        // Place lia in the center of the map (50×50 tiles × 16px = 800×800)
-        this.lia.sprite.setPosition(400, 400)
+        // Place lia in the center of the map (50×50 tiles × 32px = 1600×1600)
+        this.lia.sprite.setPosition(800, 800)
 
         this.physics.add.collider(this.lia.sprite, manager.getWallGroup(this, 'room1'))
 
