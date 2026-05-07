@@ -67,7 +67,6 @@ export default class GameScene extends Scene {
         manager.create(this)
 
         this.setupPlayer()
-        this.setupDialogueState()
         this.setupInteractables()
         this.setupDialogueUi()
         this.setupIntroUi()
@@ -138,18 +137,6 @@ export default class GameScene extends Scene {
         sprite.body.setOffset(3, 20)
 
         this.physics.add.collider(this.lia.sprite, manager.getWallGroup(this, 'room1'))
-    }
-
-    setupDialogueState() {
-        this.dialogueLines = [
-            'You seem honest, my friend.',
-            'Why then is your sword so bloody?',
-            'Is that so?'
-        ]
-        this.dialogueIndex = 0
-        this.dialogueActive = false
-        this.interactables = []
-        this.currentInteractable = null
     }
 
     setupInteractables() {
