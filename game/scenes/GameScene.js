@@ -13,16 +13,18 @@ export default class GameScene extends Scene {
         super.create()
         manager.create(this)
 
+        // Défaut de vitesse si l'objet joueur ne fournit pas `speed`
+        if (typeof this.lia.speed === 'undefined') this.lia.speed = 150
+
         // Place lia in the center of the map (50×50 tiles × 32px = 1600×1600)
         this.lia.sprite.setPosition(200, 200)
 
         //ajust la taille du sprite
         this.lia.sprite.setScale(0.5)
 
-        // ===== CONFIGURATION DE LA HITBOX DU JOUEUR =====
-        const sprite = this.lia.sprite
-
+   
         // Hitbox ajustée pour la nouvelle échelle (mettre à jour si vous changez le scale)
+        const sprite = this.lia.sprite
         sprite.body.setSize(25, 46)
         sprite.body.setOffset(3, 20)
         
@@ -244,20 +246,23 @@ export default class GameScene extends Scene {
             return
         }
 
-        //mouvement via WASD 
+        // mouvement via WASD
+        // reset velocity then apply axis-specific velocities so diagonal movement works
+        this.lia.sprite.setVelocity(0)
         if (this.keys.left.isDown) {
             this.lia.sprite.setVelocityX(-this.lia.speed)
-        }else if (this.keys.right.isDown) {
+        }
+        if (this.keys.right.isDown) {
             this.lia.sprite.setVelocityX(this.lia.speed)
-        } else if (this.keys.up.isDown) {
+        }
+        if (this.keys.up.isDown) {
             this.lia.sprite.setVelocityY(-this.lia.speed)
-        } else if (this.keys.down.isDown) {
+        }
+        if (this.keys.down.isDown) {
             this.lia.sprite.setVelocityY(this.lia.speed)
-        } else {
-            this.lia.sprite.setVelocity(0)
         }
 
-        //mouvement via flèches directionnelles
+        // mouvement via flèches directionnelles (séparé)
         this.maki.move(this.lia)
     }
 
