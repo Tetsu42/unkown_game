@@ -1,5 +1,6 @@
 import { Scene, manager } from '@tialops/maki'
 import GlitchEffect from '../effects/GlitchEffect.js'
+import Cat from '../Cat.js'
 
 const FURNITURE_DIALOGUES = {
     'random/piano.png': {
@@ -60,12 +61,20 @@ export default class GameScene extends Scene {
         this.lia = this.maki.player('lia')
         manager.map(this, 'room1')
         manager.preload(this)
+        // Précharger les sprites du chat
+        const directions = ['down', 'up', 'left', 'right']
+        directions.forEach(dir => {
+            for (let i = 1; i <= 6; i++) {
+                this.load.image(`cat_${dir}${i}`, `assets/cat/${dir}/cat_${dir}${i}.png`)
+            }
+        })
     }
 
     create() {
         super.create()
         manager.create(this)
 
+        this.initializeState()
         this.setupPlayer()
         this.setupInteractables()
         this.setupDialogueUi()
@@ -73,6 +82,20 @@ export default class GameScene extends Scene {
         this.setupInput()
         this.setupGlitchEffects()
         this.setupShutdownCleanup()
+
+        // Ajout du chat (le joueur est this.lia.sprite)
+        const wallGroup = manager.getWallGroup(this, 'room1')
+        this.cat = new Cat(this, 350, 250, this.lia.sprite, wallGroup)
+        this.physics.add.collider(this.cat, wallGroup)
+    }
+
+    initializeState() {
+        this.interactables = []
+        this.currentInteractable = null
+        this.dialogueActive = false
+        this.dialogueLines = []
+        this.dialogueIndex = 0
+        this.introActive = false
     }
 
     update() {
@@ -102,24 +125,39 @@ export default class GameScene extends Scene {
             return
         }
 
-        // mouvement via WASD
-        // reset velocity then apply axis-specific velocities so diagonal movement works
-        this.lia.sprite.setVelocity(0)
+        // mouvement via flèches géré par `maki.move`, puis surcharge par WASD
+        this.maki.move(this.lia)
+        this.applyWasdMovement()
+
+    }
+
+    applyWasdMovement() {
+        const sprite = this.lia.sprite
+        let moved = false
+
         if (this.keys.left.isDown) {
-            this.lia.sprite.setVelocityX(-this.lia.speed)
-        }
-        if (this.keys.right.isDown) {
-            this.lia.sprite.setVelocityX(this.lia.speed)
-        }
-        if (this.keys.up.isDown) {
-            this.lia.sprite.setVelocityY(-this.lia.speed)
-        }
-        if (this.keys.down.isDown) {
-            this.lia.sprite.setVelocityY(this.lia.speed)
+            sprite.setVelocityX(-this.lia.speed)
+            sprite.anims.play(`${this.lia.name}-left`, true)
+            moved = true
+        } else if (this.keys.right.isDown) {
+            sprite.setVelocityX(this.lia.speed)
+            sprite.anims.play(`${this.lia.name}-right`, true)
+            moved = true
         }
 
-        // mouvement via flèches directionnelles (séparé)
-        this.maki.move(this.lia)
+        if (this.keys.up.isDown) {
+            sprite.setVelocityY(-this.lia.speed)
+            sprite.anims.play(`${this.lia.name}-up`, true)
+            moved = true
+        } else if (this.keys.down.isDown) {
+            sprite.setVelocityY(this.lia.speed)
+            sprite.anims.play(`${this.lia.name}-down`, true)
+            moved = true
+        }
+
+        if (!moved) {
+            sprite.anims.stop()
+        }
     }
 
     canStartDialogue() {
@@ -161,7 +199,9 @@ export default class GameScene extends Scene {
         this.interactPrompt.setVisible(false)
 
         this.dialoguePanel = this.createOverlayPanel(130)
+        this.dialoguePanel.setVisible(false)
         this.dialogueName = this.createOverlayLabel(448, 'Red')
+        this.dialogueName.setVisible(false)
         this.dialogueText = this.add.text(70, 480, '', {
             fontFamily: 'Arial',
             fontSize: '20px',
