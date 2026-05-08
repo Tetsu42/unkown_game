@@ -1,6 +1,10 @@
 import { Scene } from '@tialops/maki'
 
 export default class VictoryScene extends Scene {
+    constructor() {
+        super({ key: 'VictoryScene' })
+    }
+
     create() {
         const width = this.scale.width
         const height = this.scale.height

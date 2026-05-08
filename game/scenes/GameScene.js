@@ -58,6 +58,10 @@ const FURNITURE_OBJECTS = [
 ]
 
 export default class GameScene extends Scene {
+    constructor() {
+        super({ key: 'GameScene' })
+    }
+
     preload() {
         super.preload()
         this.lia = this.maki.player('lia')

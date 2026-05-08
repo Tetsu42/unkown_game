@@ -1,6 +1,10 @@
 import { Scene } from '@tialops/maki'
 
 export default class GameOverScene extends Scene {
+    constructor() {
+        super({ key: 'GameOverScene' })
+    }
+
     create() {
         const width = this.scale.width
         const height = this.scale.height
