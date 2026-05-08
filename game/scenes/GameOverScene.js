@@ -5,7 +5,7 @@ export default class GameOverScene extends Scene {
         const width = this.scale.width
         const height = this.scale.height
 
-        // Fond sombre
+        // Fond
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.8)
 
         // Titre "MISSION ÉCHOUÉE"

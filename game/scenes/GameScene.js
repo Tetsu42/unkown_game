@@ -2,6 +2,8 @@ import { Scene, manager } from '@tialops/maki'
 import GlitchEffect from '../effects/GlitchEffect.js'
 import Cat from '../Cat.js'
 
+
+//les messages
 const FURNITURE_DIALOGUES = {
     'random/piano.png': {
         name: 'Piano',

@@ -5,7 +5,7 @@ export default class VictoryScene extends Scene {
         const width = this.scale.width
         const height = this.scale.height
 
-        // Fond sombre
+        
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.8)
 
         // Titre "VICTOIRE"
@@ -19,7 +19,7 @@ export default class VictoryScene extends Scene {
         title.setScrollFactor(0)
         title.setDepth(1000)
 
-        // Message de victoire
+        
         const message = this.add.text(width / 2, height / 2, 'Vous avez résolu le bug!\nLe chat a été capturé avec succès.', {
             fontFamily: 'Arial',
             fontSize: '24px',
@@ -70,7 +70,7 @@ export default class VictoryScene extends Scene {
         restartButtonText.setScrollFactor(0)
         restartButtonText.setDepth(1001)
 
-        // Effet hover sur le bouton RECOMMENCER
+        // Effet hover
         restartButtonBg.on('pointerover', () => {
             restartButtonBg.setFillStyle(0x5588ff, 0.9)
             restartButtonBg.setStrokeStyle(2, 0x88ddff)
