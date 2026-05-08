@@ -64,6 +64,9 @@ export default class GameScene extends Scene {
 
     preload() {
         super.preload()
+        if (Array.isArray(this._makiPlayers)) {
+            this._makiPlayers.length = 0
+        }
         this.lia = this.maki.player('lia')
         manager.map(this, 'room1')
         manager.preload(this)
@@ -103,6 +106,7 @@ export default class GameScene extends Scene {
         this.dialogueLines = []
         this.dialogueIndex = 0
         this.introActive = false
+        this.isTransitioning = false
             this.catCatchDistance = 100
             this.caughtDistance = false
             this.catImmobilized = false
@@ -111,6 +115,10 @@ export default class GameScene extends Scene {
     }
 
     update() {
+        if (this.isTransitioning) {
+            return
+        }
+
         if (this.introActive) {
             this.lia.sprite.setVelocity(0)
             return
@@ -131,7 +139,7 @@ export default class GameScene extends Scene {
         this.currentInteractable = found
 
         this.interactPrompt.setText(found
-            ? `Appuie sur E interagir avec ${found.dialogueName || 'cet objet'}`
+            ? `Appuie sur E pour interagir  : ${found.dialogueName || 'cet objet'}`
             : 'Appuie sur E pour parler')
         this.interactPrompt.setVisible(!!found && !this.dialogueActive)
 
@@ -206,6 +214,30 @@ export default class GameScene extends Scene {
         } else {
             this.catchPrompt.setVisible(false)
         }
+    }
+
+    triggerVictory() {
+        if (this.isTransitioning) {
+            return
+        }
+
+        this.isTransitioning = true
+
+        if (this.glitchRepeater) {
+            this.glitchRepeater.remove()
+        }
+
+        if (this.cat) {
+            this.cat.setVelocity(0, 0)
+        }
+
+        if (this.lia && this.lia.sprite) {
+            this.lia.sprite.setVelocity(0, 0)
+        }
+
+        this.physics.world.pause()
+
+        this.scene.start('VictoryScene')
     }
     
     applyWasdMovement() {
@@ -312,7 +344,7 @@ export default class GameScene extends Scene {
         this.gaugeFill.setOrigin(0, 0.5)
         
         // Notification de proximité
-        this.catchPrompt = this.add.text(16, 50, '', {
+        this.catchPrompt = this.add.text(16, 16, '', {
             fontFamily: 'Arial',
             fontSize: '18px',
             color: '#ffffff',
@@ -360,7 +392,7 @@ export default class GameScene extends Scene {
             r: Phaser.Input.Keyboard.KeyCodes.R
         })
 
-        this.input.keyboard.on('keydown-SPACE', () => {
+        this.onSpaceDown = () => {
             if (this.introActive) {
                 this.dismissIntro()
                 return
@@ -369,9 +401,9 @@ export default class GameScene extends Scene {
             if (!this.dialogueActive) {
                 GlitchEffect.apply(this.lia.sprite, 300, 15)
             }
-        })
+        }
 
-        this.input.keyboard.on('keydown-E', () => {
+        this.onEDown = () => {
             if (this.introActive) {
                 this.dismissIntro()
                 return
@@ -384,12 +416,17 @@ export default class GameScene extends Scene {
             if (this.canStartDialogue()) {
                 this.startDialogue()
             }
-        })
-        this.input.keyboard.on('keydown-R', () => {
+        }
+
+        this.onRDown = () => {
             if (this.caughtDistance && !this.catImmobilized) {
                 this.attemptCatchCat()
             }
-        })
+        }
+
+        this.input.keyboard.on('keydown-SPACE', this.onSpaceDown)
+        this.input.keyboard.on('keydown-E', this.onEDown)
+        this.input.keyboard.on('keydown-R', this.onRDown)
     }
 
     setupGlitchEffects() {
@@ -408,8 +445,24 @@ export default class GameScene extends Scene {
     }
 
     setupShutdownCleanup() {
-        this.events.on('shutdown', () => {
+        this.events.once('shutdown', () => {
             if (this.glitchRepeater) this.glitchRepeater.remove()
+            if (this.input?.keyboard) {
+                if (this.onSpaceDown) this.input.keyboard.off('keydown-SPACE', this.onSpaceDown)
+                if (this.onEDown) this.input.keyboard.off('keydown-E', this.onEDown)
+                if (this.onRDown) this.input.keyboard.off('keydown-R', this.onRDown)
+            }
+            // Détruire explicitement le sprite du joueur et le chat
+            if (this.lia && this.lia.sprite) {
+                this.lia.sprite.destroy()
+            }
+            if (this.cat) {
+                this.cat.destroy()
+            }
+
+            this.cat = null
+            this.currentInteractable = null
+            this.interactables = []
         })
     }
 
@@ -500,25 +553,35 @@ export default class GameScene extends Scene {
     }
 
         checkCatBounds() {
-          
-            const ROOM_WIDTH = 800
-            const ROOM_HEIGHT = 800
-            const CAT_ESCAPE_THRESHOLD = 32 
-
             if (!this.cat) return
+            if (this.isTransitioning) return
 
-            // check si le chat est sorti des limites de la pièce
-            if (this.cat.x < -CAT_ESCAPE_THRESHOLD ||
-                this.cat.x > ROOM_WIDTH + CAT_ESCAPE_THRESHOLD ||
-                this.cat.y < -CAT_ESCAPE_THRESHOLD ||
-                this.cat.y > ROOM_HEIGHT + CAT_ESCAPE_THRESHOLD) {
+            // Limites approximatives de la pièce habitable (voir le screenshot)
+            // La pièce commence après les murs (environ x=80, y=50) 
+            // et finit avant les murs extérieurs (environ x=720, y=450)
+            const ROOM_LEFT = 80
+            const ROOM_RIGHT = 720
+            const ROOM_TOP = 50
+            const ROOM_BOTTOM = 450
 
-                console.log('Le chat s\'est échappé! Game Over!')
+            // Si le chat sort de ces limites, c'est Game Over
+            if (this.cat.x < ROOM_LEFT || 
+                this.cat.x > ROOM_RIGHT || 
+                this.cat.y < ROOM_TOP || 
+                this.cat.y > ROOM_BOTTOM) {
+                
+                console.log(`Le chat s'est échappé à (${this.cat.x.toFixed(0)}, ${this.cat.y.toFixed(0)})! Game Over!`)
                 this.triggerGameOver()
             }
         }
 
         triggerGameOver() {
+            if (this.isTransitioning) {
+                return
+            }
+
+            this.isTransitioning = true
+
             // Arrêter tous les événements et les  mouvements
             if (this.glitchRepeater) {
                 this.glitchRepeater.remove()
@@ -531,6 +594,8 @@ export default class GameScene extends Scene {
             if (this.lia && this.lia.sprite) {
                 this.lia.sprite.setVelocity(0, 0)
             }
+
+            this.physics.world.pause()
 
            
             this.scene.start('GameOverScene')

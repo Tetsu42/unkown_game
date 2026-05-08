@@ -8,6 +8,15 @@ export default class VictoryScene extends Scene {
     create() {
         const width = this.scale.width
         const height = this.scale.height
+        this.isRestarting = false
+
+        const restartGame = () => {
+            if (this.isRestarting) return
+            this.isRestarting = true
+            restartButtonBg.disableInteractive()
+            this.scene.stop('GameOverScene')
+            this.scene.start('GameScene')
+        }
 
         
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.8)
@@ -85,16 +94,10 @@ export default class VictoryScene extends Scene {
         })
 
         // Click pour recommencer
-        restartButtonBg.on('pointerdown', () => {
-            this.scene.start('GameScene')
-        })
+        restartButtonBg.once('pointerdown', restartGame)
 
         // Entrée/Espace pour recommencer
-        this.input.keyboard.on('keydown-SPACE', () => {
-            this.scene.start('GameScene')
-        })
-        this.input.keyboard.on('keydown-ENTER', () => {
-            this.scene.start('GameScene')
-        })
+        this.input.keyboard.once('keydown-SPACE', restartGame)
+        this.input.keyboard.once('keydown-ENTER', restartGame)
     }
 }

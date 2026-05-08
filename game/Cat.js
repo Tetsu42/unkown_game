@@ -45,12 +45,17 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
     createAnimations() {
         const directions = ['down', 'up', 'left', 'right'];
         directions.forEach(dir => {
+            const animKey = `cat_${dir}`;
+            if (this.scene.anims.exists(animKey)) {
+                return;
+            }
+
             const frames = [];
             for (let i = 1; i <= 6; i++) {
                 frames.push({ key: `cat_${dir}${i}` });
             }
             this.scene.anims.create({
-                key: `cat_${dir}`,
+                key: animKey,
                 frames: frames,
                 frameRate: 8,
                 repeat: -1

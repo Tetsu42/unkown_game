@@ -8,6 +8,15 @@ export default class GameOverScene extends Scene {
     create() {
         const width = this.scale.width
         const height = this.scale.height
+        this.isRestarting = false
+
+        const restartGame = () => {
+            if (this.isRestarting) return
+            this.isRestarting = true
+            buttonBg.disableInteractive()
+            this.scene.stop('VictoryScene')
+            this.scene.start('GameScene')
+        }
 
         // Fond
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.8)
@@ -67,16 +76,10 @@ export default class GameOverScene extends Scene {
         })
 
         // Click pour recommencer
-        buttonBg.on('pointerdown', () => {
-            this.scene.start('GameScene')
-        })
+        buttonBg.once('pointerdown', restartGame)
 
         // ou :Entrée/ Espace pour recommencer
-        this.input.keyboard.on('keydown-SPACE', () => {
-            this.scene.start('GameScene')
-        })
-        this.input.keyboard.on('keydown-ENTER', () => {
-            this.scene.start('GameScene')
-        })
+        this.input.keyboard.once('keydown-SPACE', restartGame)
+        this.input.keyboard.once('keydown-ENTER', restartGame)
     }
 }
