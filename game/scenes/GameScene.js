@@ -80,7 +80,8 @@ export default class GameScene extends Scene {
         this.setupDialogueUi()
         this.setupIntroUi()
         this.setupInput()
-        this.setupGlitchEffects()
+            this.setupCatchUi()
+            this.setupGlitchEffects()
         this.setupShutdownCleanup()
 
         // Ajout du chat (le joueur est this.lia.sprite)
@@ -96,6 +97,11 @@ export default class GameScene extends Scene {
         this.dialogueLines = []
         this.dialogueIndex = 0
         this.introActive = false
+            this.catCatchDistance = 100
+            this.caughtDistance = false
+            this.catImmobilized = false
+            this.fillProgress = 0
+            this.fillMaxTime = 3000 // 3 secondes pour remplir complètement
     }
 
     update() {
@@ -131,9 +137,71 @@ export default class GameScene extends Scene {
         // mouvement via flèches géré par `maki.move`, puis surcharge par WASD
         this.maki.move(this.lia)
         this.applyWasdMovement()
-
+        this.updateCatCatch()
     }
 
+
+    attemptCatchCat() {
+        if (!this.cat) return
+
+        // Immobiliser le chat et démarrer la jauge
+        if (typeof this.cat.immobilize === 'function') {
+            this.cat.immobilize()
+        }
+        this.catImmobilized = true
+        this.fillProgress = 0
+        this.gaugeBackground.setVisible(true)
+    }
+
+    updateCatCatch() {
+        if (!this.cat || !this.lia) return
+
+        const distance = Phaser.Math.Distance.Between(
+            this.cat.x, this.cat.y,
+            this.lia.sprite.x, this.lia.sprite.y
+        )
+
+        // Vérifier si on est à proximité pour attraper
+        this.caughtDistance = distance < this.catCatchDistance
+
+        if (this.caughtDistance && this.catImmobilized) {
+            // Remplir la jauge
+            this.fillProgress += this.game.loop.delta
+
+            // Mettre à jour la position et la largeur de la jauge
+            const gaugeFillWidth = (this.fillProgress / this.fillMaxTime) * 80
+            this.gaugeFill.setDisplaySize(Math.min(gaugeFillWidth, 80), 8)
+            this.gaugeBackground.x = this.cat.x
+            this.gaugeBackground.y = this.cat.y - 40
+            this.gaugeFill.x = this.gaugeBackground.x - 40
+            this.gaugeFill.y = this.gaugeBackground.y
+            this.gaugeBackground.setVisible(true)
+
+            // Vérifier si capture complète
+            if (this.fillProgress >= this.fillMaxTime) {
+                this.triggerVictory()
+            }
+        } else if (this.catImmobilized && !this.caughtDistance) {
+            // Si le joueur s'éloigne, relâcher le chat
+            if (typeof this.cat.free === 'function') this.cat.free()
+            this.catImmobilized = false
+            this.fillProgress = 0
+            this.gaugeFill.setDisplaySize(0, 8)
+            this.gaugeBackground.setVisible(false)
+        } else {
+            this.gaugeFill.setDisplaySize(0, 8)
+            this.gaugeBackground.setVisible(false)
+        }
+
+        // Afficher la notification si près du chat
+        if (this.caughtDistance && !this.dialogueActive) {
+            this.catchPrompt.setText('Appuie sur R pour attraper le chat')
+            this.catchPrompt.setVisible(true)
+        } else {
+            this.catchPrompt.setVisible(false)
+        }
+    }
+    
     applyWasdMovement() {
         const sprite = this.lia.sprite
         let moved = false
@@ -226,6 +294,30 @@ export default class GameScene extends Scene {
         this.dialogueHint.setVisible(false)
     }
 
+    setupCatchUi() {
+        // Jauge de capture au-dessus du chat
+        this.gaugeBackground = this.add.rectangle(0, 0, 80, 8, 0x333333, 0.8)
+        this.gaugeBackground.setScrollFactor(1)
+        this.gaugeBackground.setDepth(500)
+        
+        this.gaugeFill = this.add.rectangle(0, 0, 0, 8, 0x44ff44, 0.9)
+        this.gaugeFill.setScrollFactor(1)
+        this.gaugeFill.setDepth(501)
+        this.gaugeFill.setOrigin(0, 0.5)
+        
+        // Notification de proximité
+        this.catchPrompt = this.add.text(16, 50, '', {
+            fontFamily: 'Arial',
+            fontSize: '18px',
+            color: '#ffffff',
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            padding: { x: 10, y: 6 }
+        })
+        this.catchPrompt.setScrollFactor(0)
+        this.catchPrompt.setDepth(1000)
+        this.catchPrompt.setVisible(false)
+    }
+
     setupIntroUi() {
         this.introActive = true
         this.introPanel = this.createOverlayPanel(150)
@@ -258,7 +350,8 @@ export default class GameScene extends Scene {
             left: Phaser.Input.Keyboard.KeyCodes.A,
             right: Phaser.Input.Keyboard.KeyCodes.D,
             space: Phaser.Input.Keyboard.KeyCodes.SPACE,
-            e: Phaser.Input.Keyboard.KeyCodes.E
+            e: Phaser.Input.Keyboard.KeyCodes.E,
+            r: Phaser.Input.Keyboard.KeyCodes.R
         })
 
         this.input.keyboard.on('keydown-SPACE', () => {
@@ -284,6 +377,11 @@ export default class GameScene extends Scene {
 
             if (this.canStartDialogue()) {
                 this.startDialogue()
+            }
+        })
+        this.input.keyboard.on('keydown-R', () => {
+            if (this.caughtDistance && !this.catImmobilized) {
+                this.attemptCatchCat()
             }
         })
     }

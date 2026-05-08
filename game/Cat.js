@@ -24,6 +24,10 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
         this.lastY = y;
         this.stuckCooldown = 0;
 
+        // Immobilisation
+        this.isImmobilized = false;
+        this.immobilizedTime = 0;
+
         this.direction = 'down';
         this.moveVector = new Phaser.Math.Vector2(0, 1);
         this.moveTarget = new Phaser.Math.Vector2(0, 0);
@@ -241,6 +245,19 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
             this.direction = dir;
             this.anims.play(`cat_${dir}`, true);
         }
+    }
+
+    immobilize() {
+        this.isImmobilized = true;
+        this.immobilizedTime = 0;
+        this.moveVector.set(0, 0);
+        this.setVelocity(0, 0);
+        this.anims.stop();
+    }
+
+    free() {
+        this.isImmobilized = false;
+        this.immobilizedTime = 0;
     }
 
     isTargetBlocked(x, y) {
