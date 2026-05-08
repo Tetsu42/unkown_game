@@ -266,7 +266,7 @@ export default class GameScene extends Scene {
                 this.dismissIntro()
                 return
             }
-            console.log('Glitch applied!')
+
             if (!this.dialogueActive) {
                 GlitchEffect.apply(this.lia.sprite, 300, 15)
             }
@@ -289,14 +289,15 @@ export default class GameScene extends Scene {
     }
 
     setupGlitchEffects() {
-        GlitchEffect.applyRGBShift(this.lia.sprite, 500)
+        
 
         this.glitchRepeater = this.time.addEvent({
             delay: 5000,
             loop: true,
             callback: () => {
                 if (!this.dialogueActive) {
-                    GlitchEffect.apply(this.lia.sprite, 300, 15)
+                    GlitchEffect.applyRGBShift(this.lia.sprite, 500)
+                    // GlitchEffect.apply(this.lia.sprite, 300, 15)
                 }
             }
         })
@@ -385,7 +386,7 @@ export default class GameScene extends Scene {
         this.dialogueName.setVisible(true)
         this.dialogueText.setVisible(true)
         this.dialogueHint.setVisible(true)
-        // Le nom est déjà défini depuis l'interactable lors de startDialogue()
+        
         this.dialogueText.setText(this.dialogueLines[this.dialogueIndex])
         this.dialogueHint.setText(
             this.dialogueIndex === this.dialogueLines.length - 1
@@ -395,15 +396,14 @@ export default class GameScene extends Scene {
     }
 
         checkCatBounds() {
-            // La room1 fait 50x50 tiles, avec tileSize = 16
-            // Donc les limites sont: 0 à 800 pixels (largeur) et 0 à 800 pixels (hauteur)
+          
             const ROOM_WIDTH = 800
             const ROOM_HEIGHT = 800
-            const CAT_ESCAPE_THRESHOLD = 32 // pixels de tolérance
+            const CAT_ESCAPE_THRESHOLD = 32 
 
             if (!this.cat) return
 
-            // Vérifie si le chat est sorti des limites de la room
+            // check si le chat est sorti des limites de la pièce
             if (this.cat.x < -CAT_ESCAPE_THRESHOLD ||
                 this.cat.x > ROOM_WIDTH + CAT_ESCAPE_THRESHOLD ||
                 this.cat.y < -CAT_ESCAPE_THRESHOLD ||
@@ -415,20 +415,20 @@ export default class GameScene extends Scene {
         }
 
         triggerGameOver() {
-            // Arrêter tous les événements et mouvements
+            // Arrêter tous les événements et les  mouvements
             if (this.glitchRepeater) {
                 this.glitchRepeater.remove()
             }
 
-            // Arrêter le mouvement du chat et du joueur
             if (this.cat) {
                 this.cat.setVelocity(0, 0)
             }
+
             if (this.lia && this.lia.sprite) {
                 this.lia.sprite.setVelocity(0, 0)
             }
 
-            // Lancer la scène GameOver
+           
             this.scene.start('GameOverScene')
         }
     }

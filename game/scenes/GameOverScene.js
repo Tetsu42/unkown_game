@@ -62,12 +62,12 @@ export default class GameOverScene extends Scene {
             buttonBg.setStrokeStyle(2, 0x66ccff)
         })
 
-        // Click sur le bouton pour recommencer
+        // Click pour recommencer
         buttonBg.on('pointerdown', () => {
             this.scene.start('GameScene')
         })
 
-        // Alternative: appuyer sur Entrée ou Espace pour recommencer
+        // ou :Entrée/ Espace pour recommencer
         this.input.keyboard.on('keydown-SPACE', () => {
             this.scene.start('GameScene')
         })
