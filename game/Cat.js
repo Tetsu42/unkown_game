@@ -6,17 +6,28 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
         this.scene = scene;
         this.player = player;
         this.wallGroup = wallGroup;
-        this.baseSpeed = 70;
-        this.fleeSpeed = 140;
-        this.fleeDistance = 170;
-        this.repathDelay = 90;
+
+        // FIX 1 : vitesse de fuite nettement supérieure au joueur (130)
+        this.baseSpeed = 80;
+        this.fleeSpeed = 168;
+
+        // FIX 2 : détection plus tôt → le chat commence à fuir avant d'être attrapé
+        this.fleeDistance = 240;
+
+        // FIX 3 : repath très fréquent en fuite pour réagir vite
+        this.repathDelay = 70;
         this.repathTimer = 0;
+
+        // Stuck detection
         this.stuckTimer = 0;
         this.lastX = x;
         this.lastY = y;
+        this.stuckCooldown = 0;
+
         this.direction = 'down';
         this.moveVector = new Phaser.Math.Vector2(0, 1);
         this.moveTarget = new Phaser.Math.Vector2(0, 0);
+
         scene.add.existing(this);
         scene.physics.add.existing(this);
         this.setCollideWorldBounds(true);
@@ -57,16 +68,21 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
 
         const dx = this.x - player.x;
         const dy = this.y - player.y;
-        const distSq = (dx * dx) + (dy * dy);
+        const distSq = dx * dx + dy * dy;
         const fleeDistanceSq = this.fleeDistance * this.fleeDistance;
         const isFleeing = distSq < fleeDistanceSq;
         const speed = isFleeing ? this.fleeSpeed : this.baseSpeed;
 
-        const movedSinceLast = Phaser.Math.Distance.Between(this.x, this.y, this.lastX, this.lastY);
-        const currentSpeed = this.body && this.body.velocity
-            ? Math.abs(this.body.velocity.x) + Math.abs(this.body.velocity.y)
-            : 0;
-        if (this.body.blocked.left || this.body.blocked.right || this.body.blocked.up || this.body.blocked.down || (currentSpeed > 0 && movedSinceLast < 0.2)) {
+        // --- Détection de blocage ---
+        const isPhysicallyBlocked =
+            this.body.blocked.left ||
+            this.body.blocked.right ||
+            this.body.blocked.up ||
+            this.body.blocked.down;
+
+        const moved = Phaser.Math.Distance.Between(this.x, this.y, this.lastX, this.lastY);
+
+        if (isPhysicallyBlocked || (speed > 0 && moved < 0.5)) {
             this.stuckTimer += delta;
         } else {
             this.stuckTimer = 0;
@@ -75,16 +91,20 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
         this.lastX = this.x;
         this.lastY = this.y;
         this.repathTimer -= delta;
+        if (this.stuckCooldown > 0) this.stuckCooldown -= delta;
 
-        if (this.stuckTimer > 120) {
+        // FIX 4 : récupération de blocage très rapide (60 ms au lieu de 120)
+        if (this.stuckTimer > 60 && this.stuckCooldown <= 0) {
             this.repathTimer = 0;
             this.stuckTimer = 0;
+            this.stuckCooldown = 200; // évite de re-trigger en boucle
         }
 
-        if (this.repathTimer <= 0 || this.isTargetBlocked(this.moveTarget.x, this.moveTarget.y)) {
+        if (this.repathTimer <= 0) {
             this.pickNewDirection(isFleeing, player, dx, dy);
-            // En mode fuite, recalcul plus fréquent
-            this.repathTimer = (isFleeing ? this.repathDelay * 0.5 : this.repathDelay) + Phaser.Math.Between(0, 60);
+            // FIX 5 : repath très fréquent en fuite
+            this.repathTimer = (isFleeing ? this.repathDelay * 0.4 : this.repathDelay)
+                + Phaser.Math.Between(0, 40);
         }
 
         if (this.moveVector.lengthSq() === 0) {
@@ -99,106 +119,114 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
         this.playMovementAnimation(vx, vy);
     }
 
+    /**
+     * Compte combien de pas sont libres dans une direction donnée.
+     * C'est la clé pour détecter les culs-de-sac AVANT d'y entrer.
+     */
+    countFreeSteps(startX, startY, vx, vy, maxSteps = 12, stepSize = 26) {
+        let count = 0;
+        for (let i = 1; i <= maxSteps; i++) {
+            const tx = startX + vx * stepSize * i;
+            const ty = startY + vy * stepSize * i;
+            if (this.isTargetBlocked(tx, ty)) break;
+            count++;
+        }
+        return count;
+    }
+
+    /**
+     * Mesure l'ouverture latérale à une position donnée.
+     * Faible ouverture = coin / couloir étroit.
+     */
+    lateralOpenness(posX, posY, vx, vy, steps = 4, stepSize = 26) {
+        const perpX = -vy;
+        const perpY = vx;
+        const left = this.countFreeSteps(posX, posY, perpX, perpY, steps, stepSize);
+        const right = this.countFreeSteps(posX, posY, -perpX, -perpY, steps, stepSize);
+        return left + right;
+    }
+
     pickNewDirection(isFleeing, player, dx, dy) {
-        // Directions principales et diagonales
-        const baseAngles = [0, Math.PI/2, Math.PI, -Math.PI/2, Math.PI/4, -Math.PI/4, 3*Math.PI/4, -3*Math.PI/4];
-        let candidates = baseAngles.map(a => new Phaser.Math.Vector2(Math.cos(a), Math.sin(a)));
-
-        // En mode fuite, on tente aussi des angles intermédiaires
-        if (isFleeing) {
-            for (let i = 0; i < 8; i++) {
-                const a = baseAngles[i] + Phaser.Math.FloatBetween(-0.35, 0.35);
-                candidates.push(new Phaser.Math.Vector2(Math.cos(a), Math.sin(a)));
-            }
-        }
-
-        const forward = new Phaser.Math.Vector2(dx, dy);
-        if (forward.lengthSq() > 0.001) {
-            forward.normalize();
-        }
+        // FIX 6 : 24 directions au lieu de 8+8 → couverture plus fine
+        const NUM_ANGLES = 24;
+        const STEP = 26;
 
         let bestVector = null;
         let bestScore = -Infinity;
         let firstFreeVector = null;
 
-        for (const candidate of candidates) {
-            const vector = candidate.clone().normalize();
-            const stepDistance = 28;
-            const targetX = this.x + vector.x * stepDistance;
-            const targetY = this.y + vector.y * stepDistance;
+        for (let i = 0; i < NUM_ANGLES; i++) {
+            const angle = (i / NUM_ANGLES) * Math.PI * 2;
+            const vx = Math.cos(angle);
+            const vy = Math.sin(angle);
 
-            // Vérifie que la direction n'est pas bloquée
-            let blocked = this.isTargetBlocked(targetX, targetY);
-            if (!blocked && !firstFreeVector) {
-                firstFreeVector = vector.clone();
-            }
-            if (isFleeing && blocked) {
-                // On tente quand même, mais on baisse le score
-                blocked = false;
-            }
-            if (blocked) continue;
+            // Étape 1 : rejeter immédiatement les directions mur au premier pas
+            const firstFree = this.countFreeSteps(this.x, this.y, vx, vy, 1, STEP);
+            if (firstFree === 0) continue;
 
-            // Vérifie qu'il y a de l'espace derrière la direction choisie (pour ne pas se coincer)
-            let safe = true;
-            if (isFleeing) {
-                for (let step = 2; step <= 5; step++) {
-                    const checkX = this.x + vector.x * stepDistance * step;
-                    const checkY = this.y + vector.y * stepDistance * step;
-                    if (this.isTargetBlocked(checkX, checkY)) {
-                        safe = false;
-                        break;
-                    }
-                }
+            if (!firstFreeVector) {
+                firstFreeVector = new Phaser.Math.Vector2(vx, vy);
             }
+
+            // Étape 2 : profondeur libre en avant (anti cul-de-sac)
+            const freeDepth = this.countFreeSteps(this.x, this.y, vx, vy, 14, STEP);
+
+            // Étape 3 : ouverture latérale après 2 pas (anti coin)
+            const midX = this.x + vx * STEP * 2;
+            const midY = this.y + vy * STEP * 2;
+            const lateral = this.lateralOpenness(midX, midY, vx, vy, 4, STEP);
 
             let score = 0;
+
             if (isFleeing) {
-                const futureDx = targetX - player.x;
-                const futureDy = targetY - player.y;
-                score += Math.sqrt((futureDx * futureDx) + (futureDy * futureDy));
-                score += Phaser.Math.Clamp(vector.dot(forward), -1, 1) * 16;
-                score += Phaser.Math.FloatBetween(0, 2);
-                if (!safe) score -= 30;
+                // Distance future au joueur (maximiser = s'éloigner)
+                const futureX = this.x + vx * STEP * 4;
+                const futureY = this.y + vy * STEP * 4;
+                const futureDist = Phaser.Math.Distance.Between(futureX, futureY, player.x, player.y);
+
+                // FIX 7 : poids forts sur profondeur et ouverture → jamais de coin
+                score += futureDist * 1.8;       // s'éloigner du joueur
+                score += freeDepth * 22;          // fuir vers du vide (évite cul-de-sac)
+                score += lateral * 10;            // éviter les coins étroits
+                score += Phaser.Math.FloatBetween(0, 4); // légère variété
+
             } else {
-                score += 12;
-                score += Phaser.Math.FloatBetween(0, 1);
+                // Déambulation normale
+                score += freeDepth * 8;
+                score += lateral * 3;
                 if (this.moveVector.lengthSq() > 0) {
-                    score += Phaser.Math.Clamp(vector.dot(this.moveVector), -1, 1) * 10;
+                    const dot = vx * this.moveVector.x + vy * this.moveVector.y;
+                    score += Phaser.Math.Clamp(dot, -1, 1) * 12; // préfère continuer tout droit
                 }
+                score += Phaser.Math.FloatBetween(0, 3);
             }
 
             if (score > bestScore) {
                 bestScore = score;
-                bestVector = vector;
-                this.moveTarget.set(targetX, targetY);
+                bestVector = new Phaser.Math.Vector2(vx, vy);
+                this.moveTarget.set(this.x + vx * STEP, this.y + vy * STEP);
             }
         }
 
-        if (!bestVector) {
-            // Si aucune direction de fuite n'est possible, tente de trouver un point d'évasion libre plus loin
-            if (isFleeing) {
-                const escape = this.findEscapePoint(player);
-                if (escape) {
-                    this.moveVector.set(escape.x - this.x, escape.y - this.y).normalize();
-                    this.moveTarget.set(escape.x, escape.y);
-                    return;
-                }
-            }
-
-            // Prenez la première direction libre trouvée
-            if (firstFreeVector) {
-                this.moveVector.copy(firstFreeVector).normalize();
-                this.moveTarget.set(this.x + firstFreeVector.x * 28, this.y + firstFreeVector.y * 28);
-            } else {
-                // Si vraiment tout est bloqué, on tente une direction aléatoire
-                const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-                this.moveVector.set(Math.cos(angle), Math.sin(angle));
-                this.moveTarget.set(this.x, this.y);
-            }
+        if (bestVector) {
+            this.moveVector.copy(bestVector).normalize();
             return;
         }
 
-        this.moveVector.copy(bestVector).normalize();
+        // FIX 8 : secours — prendre la première direction libre trouvée
+        if (firstFreeVector) {
+            this.moveVector.copy(firstFreeVector).normalize();
+            this.moveTarget.set(
+                this.x + firstFreeVector.x * STEP,
+                this.y + firstFreeVector.y * STEP
+            );
+            return;
+        }
+
+        // Dernier recours : direction aléatoire
+        const fallback = Phaser.Math.FloatBetween(0, Math.PI * 2);
+        this.moveVector.set(Math.cos(fallback), Math.sin(fallback));
+        this.moveTarget.set(this.x, this.y);
     }
 
     playMovementAnimation(vx, vy) {
@@ -216,15 +244,20 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
     }
 
     isTargetBlocked(x, y) {
-        // Sécurité : si le corps n'est pas prêt, on ne bloque pas
         if (!this.body) return false;
 
-        // Si on n'a pas de groupe de murs fourni, on se contente du blocked
         if (!this.wallGroup) {
-            return this.body.blocked.left || this.body.blocked.right || this.body.blocked.up || this.body.blocked.down;
+            return (
+                this.body.blocked.left ||
+                this.body.blocked.right ||
+                this.body.blocked.up ||
+                this.body.blocked.down
+            );
         }
 
-        const children = typeof this.wallGroup.getChildren === 'function' ? this.wallGroup.getChildren() : [];
+        const children = typeof this.wallGroup.getChildren === 'function'
+            ? this.wallGroup.getChildren()
+            : [];
         if (!children.length) return false;
 
         const paddingX = Math.max(6, (this.body.width || 16) * 0.45);
@@ -244,29 +277,5 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
         }
 
         return false;
-    }
-
-    // Recherche simple d'un point d'évasion qui augmente la distance au joueur
-    findEscapePoint(player) {
-        const currentDist = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
-        const step = 28;
-        let best = null;
-        let bestDist = currentDist;
-        // Cherche points sur une grille circulaire
-        for (let r = 1; r <= 6; r++) {
-            for (let a = 0; a < 16; a++) {
-                const ang = (a / 16) * Math.PI * 2;
-                const tx = this.x + Math.cos(ang) * step * r;
-                const ty = this.y + Math.sin(ang) * step * r;
-                if (this.isTargetBlocked(tx, ty)) continue;
-                const d = Phaser.Math.Distance.Between(tx, ty, player.x, player.y);
-                if (d > bestDist + 16) {
-                    bestDist = d;
-                    best = { x: tx, y: ty };
-                }
-            }
-            if (best) break;
-        }
-        return best;
     }
 }

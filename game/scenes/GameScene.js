@@ -116,7 +116,7 @@ export default class GameScene extends Scene {
         this.currentInteractable = found
 
         this.interactPrompt.setText(found
-            ? `Appuie sur E pour parler à ${found.dialogueName || 'cet objet'}`
+            ? `Appuie sur E interagir avec ${found.dialogueName || 'cet objet'}`
             : 'Appuie sur E pour parler')
         this.interactPrompt.setVisible(!!found && !this.dialogueActive)
 
@@ -165,7 +165,7 @@ export default class GameScene extends Scene {
     }
 
     setupPlayer() {
-        if (typeof this.lia.speed === 'undefined') this.lia.speed = 150
+        if (typeof this.lia.speed === 'undefined') this.lia.speed = 130
 
         this.lia.sprite.setPosition(200, 200)
         this.lia.sprite.setScale(0.5)
