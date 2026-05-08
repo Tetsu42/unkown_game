@@ -104,6 +104,9 @@ export default class GameScene extends Scene {
             return
         }
 
+            // Vérifier si le chat est sorti de la pièce (Game Over)
+            this.checkCatBounds()
+
         // Vérifier si on est dans une zone d'un interactable
         let found = null
         for (let i = 0; i < this.interactables.length; i++) {
@@ -390,4 +393,42 @@ export default class GameScene extends Scene {
                 : 'Espace pour continuer'
         )
     }
-}
+
+        checkCatBounds() {
+            // La room1 fait 50x50 tiles, avec tileSize = 16
+            // Donc les limites sont: 0 à 800 pixels (largeur) et 0 à 800 pixels (hauteur)
+            const ROOM_WIDTH = 800
+            const ROOM_HEIGHT = 800
+            const CAT_ESCAPE_THRESHOLD = 32 // pixels de tolérance
+
+            if (!this.cat) return
+
+            // Vérifie si le chat est sorti des limites de la room
+            if (this.cat.x < -CAT_ESCAPE_THRESHOLD ||
+                this.cat.x > ROOM_WIDTH + CAT_ESCAPE_THRESHOLD ||
+                this.cat.y < -CAT_ESCAPE_THRESHOLD ||
+                this.cat.y > ROOM_HEIGHT + CAT_ESCAPE_THRESHOLD) {
+
+                console.log('Le chat s\'est échappé! Game Over!')
+                this.triggerGameOver()
+            }
+        }
+
+        triggerGameOver() {
+            // Arrêter tous les événements et mouvements
+            if (this.glitchRepeater) {
+                this.glitchRepeater.remove()
+            }
+
+            // Arrêter le mouvement du chat et du joueur
+            if (this.cat) {
+                this.cat.setVelocity(0, 0)
+            }
+            if (this.lia && this.lia.sprite) {
+                this.lia.sprite.setVelocity(0, 0)
+            }
+
+            // Lancer la scène GameOver
+            this.scene.start('GameOverScene')
+        }
+    }

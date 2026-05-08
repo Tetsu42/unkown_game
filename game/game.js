@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import GameScene from './scenes/GameScene.js'
+import GameOverScene from './scenes/GameOverScene.js'
 
 new Phaser.Game({
     type: Phaser.AUTO,
@@ -10,5 +11,5 @@ new Phaser.Game({
         default: 'arcade',
         arcade: { debug: true }
     },
-    scene: [GameScene]
+        scene: [GameScene, GameOverScene]
 })
