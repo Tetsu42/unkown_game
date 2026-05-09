@@ -2,7 +2,6 @@ import { Scene, manager } from '@tialops/maki'
 import GlitchEffect from '../effects/GlitchEffect.js'
 import Cat from '../Cat.js'
 
-
 //les messages
 const FURNITURE_DIALOGUES = {
     'random/piano.png': {
@@ -57,6 +56,13 @@ const FURNITURE_OBJECTS = [
     { src: 'bedroom/bed.png', x: 496, y: 304, w: 16, h: 48 }
 ]
 
+const ROOM_BOUNDS = {
+    left: 80,
+    right: 720,
+    top: 50,
+    bottom: 450
+}
+
 export default class GameScene extends Scene {
     constructor() {
         super({ key: 'GameScene' })
@@ -77,6 +83,13 @@ export default class GameScene extends Scene {
                 this.load.image(`cat_${dir}${i}`, `assets/cat/${dir}/cat_${dir}${i}.png`)
             }
         })
+
+        for (const item of FURNITURE_OBJECTS) {
+            const textureKey = this.getFurnitureTextureKey(item.src)
+            if (!this.textures.exists(textureKey)) {
+                this.load.image(textureKey, `assets/${item.src}`)
+            }
+        }
     }
 
     create() {
@@ -89,29 +102,40 @@ export default class GameScene extends Scene {
         this.setupDialogueUi()
         this.setupIntroUi()
         this.setupInput()
-            this.setupCatchUi()
-            this.setupGlitchEffects()
+        this.setupCatchUi()
+        this.setupGlitchEffects()
         this.setupShutdownCleanup()
 
         // Ajout du chat (le joueur est this.lia.sprite)
         const wallGroup = manager.getWallGroup(this, 'room1')
-        this.cat = new Cat(this, 350, 250, this.lia.sprite, wallGroup)
+        this.cat = new Cat(
+            this,
+            350,
+            250,
+            this.lia.sprite,
+            wallGroup,
+            () => this.interactables
+        )
         this.physics.add.collider(this.cat, wallGroup)
+        this.syncInteractableCatColliders()
     }
 
     initializeState() {
         this.interactables = []
         this.currentInteractable = null
+        this.carriedInteractable = null
         this.dialogueActive = false
         this.dialogueLines = []
         this.dialogueIndex = 0
         this.introActive = false
         this.isTransitioning = false
-            this.catCatchDistance = 100
-            this.caughtDistance = false
-            this.catImmobilized = false
-            this.fillProgress = 0
-            this.fillMaxTime = 3000 // 3 secondes pour remplir complètement
+        this.lastFacing = 'down'
+        this.canPlaceCarriedObject = false
+        this.catCatchDistance = 60
+        this.caughtDistance = false
+        this.catImmobilized = false
+        this.fillProgress = 0
+        this.fillMaxTime = 3000
     }
 
     update() {
@@ -124,41 +148,47 @@ export default class GameScene extends Scene {
             return
         }
 
-            // Vérifier si le chat est sorti de la pièce (Game Over)
-            this.checkCatBounds()
+        this.checkCatBounds()
 
         // Vérifier si on est dans une zone d'un interactable
         let found = null
         for (let i = 0; i < this.interactables.length; i++) {
             const zone = this.interactables[i]
-            if (Phaser.Geom.Intersects.RectangleToRectangle(this.lia.sprite.getBounds(), zone.getBounds())) {
+            if (zone === this.carriedInteractable) continue
+            const zoneBounds = zone.getBounds()
+            const interactRange = new Phaser.Geom.Rectangle(
+                zoneBounds.x - 18,
+                zoneBounds.y - 18,
+                zoneBounds.width + 36,
+                zoneBounds.height + 36
+            )
+            if (Phaser.Geom.Intersects.RectangleToRectangle(this.lia.sprite.getBounds(), interactRange)) {
                 found = zone
                 break
             }
         }
         this.currentInteractable = found
 
-        this.interactPrompt.setText(found
-            ? `Appuie sur E pour interagir  : ${found.dialogueName || 'cet objet'}`
+        this.interactPrompt.setText(found && !this.carriedInteractable
+            ? `E : interagir | R : déplacer (${found.dialogueName || 'objet'})`
             : 'Appuie sur E pour parler')
-        this.interactPrompt.setVisible(!!found && !this.dialogueActive)
+        this.interactPrompt.setVisible(!!found && !this.dialogueActive && !this.carriedInteractable)
 
         if (this.dialogueActive) {
             this.lia.sprite.setVelocity(0)
             return
         }
 
-        // mouvement via flèches géré par `maki.move`, puis surcharge par WASD
         this.maki.move(this.lia)
         this.applyWasdMovement()
+        this.updateCarriedObjectPosition()
         this.updateCatCatch()
+        this.updateActionPrompt()
     }
-
 
     attemptCatchCat() {
         if (!this.cat) return
 
-        // Immobiliser le chat et démarrer la jauge
         if (typeof this.cat.immobilize === 'function') {
             this.cat.immobilize()
         }
@@ -175,14 +205,11 @@ export default class GameScene extends Scene {
             this.lia.sprite.x, this.lia.sprite.y
         )
 
-        // Vérifier si on est à proximité pour attraper
         this.caughtDistance = distance < this.catCatchDistance
 
         if (this.caughtDistance && this.catImmobilized) {
-            // Remplir la jauge
             this.fillProgress += this.game.loop.delta
 
-            // Mettre à jour la position et la largeur de la jauge
             const gaugeFillWidth = (this.fillProgress / this.fillMaxTime) * 80
             this.gaugeFill.setDisplaySize(Math.min(gaugeFillWidth, 80), 8)
             this.gaugeBackground.x = this.cat.x
@@ -191,12 +218,10 @@ export default class GameScene extends Scene {
             this.gaugeFill.y = this.gaugeBackground.y
             this.gaugeBackground.setVisible(true)
 
-            // Vérifier si capture complète
             if (this.fillProgress >= this.fillMaxTime) {
                 this.triggerVictory()
             }
         } else if (this.catImmobilized && !this.caughtDistance) {
-            // Si le joueur s'éloigne, relâcher le chat
             if (typeof this.cat.free === 'function') this.cat.free()
             this.catImmobilized = false
             this.fillProgress = 0
@@ -205,14 +230,6 @@ export default class GameScene extends Scene {
         } else {
             this.gaugeFill.setDisplaySize(0, 8)
             this.gaugeBackground.setVisible(false)
-        }
-
-        // Afficher la notification si près du chat
-        if (this.caughtDistance && !this.dialogueActive) {
-            this.catchPrompt.setText('Appuie sur R pour attraper le chat')
-            this.catchPrompt.setVisible(true)
-        } else {
-            this.catchPrompt.setVisible(false)
         }
     }
 
@@ -247,20 +264,24 @@ export default class GameScene extends Scene {
         if (this.keys.left.isDown) {
             sprite.setVelocityX(-this.lia.speed)
             sprite.anims.play(`${this.lia.name}-left`, true)
+            this.lastFacing = 'left'
             moved = true
         } else if (this.keys.right.isDown) {
             sprite.setVelocityX(this.lia.speed)
             sprite.anims.play(`${this.lia.name}-right`, true)
+            this.lastFacing = 'right'
             moved = true
         }
 
         if (this.keys.up.isDown) {
             sprite.setVelocityY(-this.lia.speed)
             sprite.anims.play(`${this.lia.name}-up`, true)
+            this.lastFacing = 'up'
             moved = true
         } else if (this.keys.down.isDown) {
             sprite.setVelocityY(this.lia.speed)
             sprite.anims.play(`${this.lia.name}-down`, true)
+            this.lastFacing = 'down'
             moved = true
         }
 
@@ -270,7 +291,7 @@ export default class GameScene extends Scene {
     }
 
     canStartDialogue() {
-        return !!this.currentInteractable
+        return !!this.currentInteractable && !this.carriedInteractable
     }
 
     setupPlayer() {
@@ -291,7 +312,7 @@ export default class GameScene extends Scene {
             const dialogue = FURNITURE_DIALOGUES[item.src]
             if (!dialogue) continue
 
-            this.createInteractable(item.x, item.y, item.w, item.h, dialogue.lines, dialogue.name)
+            this.createInteractable(item, dialogue.lines, dialogue.name)
         }
     }
 
@@ -333,7 +354,6 @@ export default class GameScene extends Scene {
     }
 
     setupCatchUi() {
-        // Jauge de capture au-dessus du chat
         this.gaugeBackground = this.add.rectangle(0, 0, 80, 8, 0x333333, 0.8)
         this.gaugeBackground.setScrollFactor(1)
         this.gaugeBackground.setDepth(500)
@@ -343,7 +363,6 @@ export default class GameScene extends Scene {
         this.gaugeFill.setDepth(501)
         this.gaugeFill.setOrigin(0, 0.5)
         
-        // Notification de proximité
         this.catchPrompt = this.add.text(16, 16, '', {
             fontFamily: 'Arial',
             fontSize: '18px',
@@ -408,6 +427,9 @@ export default class GameScene extends Scene {
                 this.dismissIntro()
                 return
             }
+            if (this.carriedInteractable) {
+                return
+            }
             if (this.dialogueActive) {
                 this.advanceDialogue()
                 return
@@ -419,6 +441,20 @@ export default class GameScene extends Scene {
         }
 
         this.onRDown = () => {
+            if (this.introActive || this.dialogueActive || this.isTransitioning) {
+                return
+            }
+
+            if (this.carriedInteractable) {
+                this.placeCarriedObject()
+                return
+            }
+
+            if (this.currentInteractable) {
+                this.pickUpInteractable(this.currentInteractable)
+                return
+            }
+
             if (this.caughtDistance && !this.catImmobilized) {
                 this.attemptCatchCat()
             }
@@ -430,15 +466,12 @@ export default class GameScene extends Scene {
     }
 
     setupGlitchEffects() {
-        
-
         this.glitchRepeater = this.time.addEvent({
             delay: 5000,
             loop: true,
             callback: () => {
                 if (!this.dialogueActive) {
                     GlitchEffect.applyRGBShift(this.lia.sprite, 500)
-                    // GlitchEffect.apply(this.lia.sprite, 300, 15)
                 }
             }
         })
@@ -452,7 +485,6 @@ export default class GameScene extends Scene {
                 if (this.onEDown) this.input.keyboard.off('keydown-E', this.onEDown)
                 if (this.onRDown) this.input.keyboard.off('keydown-R', this.onRDown)
             }
-            // Détruire explicitement le sprite du joueur et le chat
             if (this.lia && this.lia.sprite) {
                 this.lia.sprite.destroy()
             }
@@ -460,10 +492,27 @@ export default class GameScene extends Scene {
                 this.cat.destroy()
             }
 
+            for (const zone of this.interactables) {
+                if (zone?.playerCollider) {
+                    zone.playerCollider.destroy()
+                }
+                if (zone?.catCollider) {
+                    zone.catCollider.destroy()
+                }
+                if (zone?.movableSprite && zone.createdMovableSprite) {
+                    zone.movableSprite.destroy()
+                }
+            }
+
             this.cat = null
             this.currentInteractable = null
+            this.carriedInteractable = null
             this.interactables = []
         })
+    }
+
+    getFurnitureTextureKey(src) {
+        return `furniture:${src}`
     }
 
     createOverlayPanel(height) {
@@ -488,15 +537,272 @@ export default class GameScene extends Scene {
         return label
     }
 
-    createInteractable(x, y, w, h, lines, name) {
-        const zone = this.add.zone(x + (w / 2), y + (h / 2), w, h)
-        this.physics.world.enable(zone)
-        zone.body.setAllowGravity(false)
-        zone.body.moves = false
+    createInteractable(item, lines, name) {
+        const zone = this.add.zone(item.x + (item.w / 2), item.y + (item.h / 2), item.w, item.h)
         zone.dialogueLines = Array.isArray(lines) ? lines : [lines]
         zone.dialogueName = name || 'Objet'
+        zone.objectWidth = item.w
+        zone.objectHeight = item.h
+        zone.textureKey = this.getFurnitureTextureKey(item.src)
+        zone.sourcePath = item.src
+        zone.movableSprite = this.findExistingFurnitureSprite(item)
+        zone.createdMovableSprite = false
+        this.attachInteractablePhysics(zone)
         this.interactables.push(zone)
+        this.ensureCatCollision(zone)
         return zone
+    }
+
+    // ✅ KEY FIX: Proper physics attachment
+    attachInteractablePhysics(zone) {
+        if (!zone) return
+
+        if (!zone.body) {
+            this.physics.world.enable(zone)
+        } else if (!zone.body.enabled) {
+            zone.body.enable = true
+        }
+
+        zone.body.setAllowGravity(false)
+        zone.body.moves = false
+        zone.body.immovable = true
+
+        if (zone.body.setSize) {
+            zone.body.setSize(zone.objectWidth, zone.objectHeight)
+        }
+        if (zone.body.updateFromGameObject) {
+            zone.body.updateFromGameObject()
+        }
+
+        zone.playerCollider = this.physics.add.collider(this.lia.sprite, zone)
+        this.ensureCatCollision(zone)
+    }
+
+    ensureCatCollision(zone) {
+        if (!zone || !this.cat || !this.physics?.add?.collider) return
+
+        if (zone.catCollider) {
+            return
+        }
+
+        zone.catCollider = this.physics.add.collider(this.cat, zone)
+    }
+
+    syncInteractableCatColliders() {
+        for (const zone of this.interactables) {
+            this.ensureCatCollision(zone)
+        }
+    }
+
+    findExistingFurnitureSprite(item) {
+        const targetX = item.x + (item.w / 2)
+        const targetY = item.y + (item.h / 2)
+        const expectedKey = item.src
+
+        const candidates = this.children.list.filter(obj => {
+            if (!obj || typeof obj.x !== 'number' || typeof obj.y !== 'number') return false
+            if (!obj.texture || typeof obj.texture.key !== 'string') return false
+            const key = obj.texture.key
+            if (!(key === expectedKey || key.endsWith(expectedKey))) return false
+            return Math.abs(obj.x - targetX) <= 4 && Math.abs(obj.y - targetY) <= 4
+        })
+
+        return candidates.length ? candidates[0] : null
+    }
+
+    createMovableSpriteForZone(zone) {
+        if (zone.movableSprite) {
+            return zone.movableSprite
+        }
+
+        zone.movableSprite = this.add.rectangle(zone.x, zone.y, zone.objectWidth, zone.objectHeight, 0x87ceeb, 0.35)
+        zone.movableSprite.setStrokeStyle(2, 0x7dd3fc, 0.95)
+        zone.createdMovableSprite = true
+
+        zone.movableSprite.setDepth(850)
+        zone.movableSprite.setAlpha(0.9)
+        return zone.movableSprite
+    }
+
+    // ✅ SIMPLIFIED: Keep body active so the cat still collides with the object
+    pickUpInteractable(zone) {
+        if (!zone) return
+        if (this.dialogueActive) {
+            this.endDialogue()
+        }
+
+        const sprite = this.createMovableSpriteForZone(zone)
+        this.carriedInteractable = zone
+        
+        // ✅ Détruire le collider joueur
+        if (zone.playerCollider) {
+            zone.playerCollider.destroy()
+            zone.playerCollider = null
+        }
+        
+        // ✅ Garder le body actif pour préserver la collision avec le chat
+        if (zone.body) {
+            zone.body.enable = true
+            zone.body.setAllowGravity(false)
+            zone.body.moves = false
+            zone.body.immovable = true
+        }
+        
+        sprite.setDepth(900)
+        sprite.setAlpha(0.62)
+        this.updateCarriedObjectPosition()
+    }
+
+    updateCarriedObjectPosition() {
+        if (!this.carriedInteractable) return
+
+        const target = this.getCarryTargetPosition()
+        const zone = this.carriedInteractable
+        const sprite = this.createMovableSpriteForZone(zone)
+
+        zone.setPosition(target.x, target.y)
+        
+        if (zone.body && zone.body.enabled) {
+            try {
+                if (typeof zone.body.reset === 'function') {
+                    zone.body.reset(target.x, target.y)
+                } else if (typeof zone.body.updateFromGameObject === 'function' && zone.body.gameObject) {
+                    zone.body.updateFromGameObject()
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+        sprite.setPosition(target.x, target.y)
+
+        this.canPlaceCarriedObject = this.isPlacementValid(zone, target.x, target.y)
+        if (this.canPlaceCarriedObject) {
+            if (typeof sprite.clearTint === 'function') sprite.clearTint()
+            if (typeof sprite.setFillStyle === 'function') sprite.setFillStyle(0x7dd3fc, 0.35)
+            sprite.setAlpha(0.62)
+        } else {
+            if (typeof sprite.setTint === 'function') sprite.setTint(0xff7a7a)
+            if (typeof sprite.setFillStyle === 'function') sprite.setFillStyle(0xef4444, 0.45)
+            sprite.setAlpha(0.55)
+        }
+    }
+
+    getCarryTargetPosition() {
+        const player = this.lia.sprite
+        const closeOffset = 24
+        const verticalAdjust = -8
+
+        switch (this.lastFacing) {
+            case 'left':
+                return { x: player.x - closeOffset, y: player.y + verticalAdjust }
+            case 'right':
+                return { x: player.x + closeOffset, y: player.y + verticalAdjust }
+            case 'up':
+                return { x: player.x, y: player.y - 28 }
+            default:
+                return { x: player.x, y: player.y + 18 }
+        }
+    }
+
+    // ✅ SIMPLIFIED: Just re-enable the zone physics
+    placeCarriedObject() {
+        if (!this.carriedInteractable) return
+
+        const zone = this.carriedInteractable
+        const sprite = this.createMovableSpriteForZone(zone)
+
+        if (!this.canPlaceCarriedObject) {
+            this.catchPrompt.setText('Impossible de poser ici')
+            this.catchPrompt.setVisible(true)
+            return
+        }
+
+        sprite.setDepth(850)
+        if (typeof sprite.clearTint === 'function') sprite.clearTint()
+        if (typeof sprite.setFillStyle === 'function') sprite.setFillStyle(0x87ceeb, 0.35)
+        sprite.setAlpha(0.9)
+
+        // ✅ Juste réactiver la physique de la zone
+        this.attachInteractablePhysics(zone)
+
+        this.carriedInteractable = null
+        this.canPlaceCarriedObject = false
+        this.catchPrompt.setVisible(false)
+    }
+
+    isPlacementValid(zone, centerX, centerY) {
+        if (!zone) return false
+
+        const width = zone.objectWidth
+        const height = zone.objectHeight
+
+        const candidate = new Phaser.Geom.Rectangle(
+            centerX - width / 2,
+            centerY - height / 2,
+            width,
+            height
+        )
+
+        if (
+            candidate.left < ROOM_BOUNDS.left ||
+            candidate.right > ROOM_BOUNDS.right ||
+            candidate.top < ROOM_BOUNDS.top ||
+            candidate.bottom > ROOM_BOUNDS.bottom
+        ) {
+            return false
+        }
+
+        const wallGroup = manager.getWallGroup(this, 'room1')
+        const walls = wallGroup?.getChildren ? wallGroup.getChildren() : []
+        for (const wall of walls) {
+            if (!wall || typeof wall.getBounds !== 'function') continue
+            const bounds = wall.getBounds()
+            const wallRect = new Phaser.Geom.Rectangle(bounds.x, bounds.y, bounds.width, bounds.height)
+            if (Phaser.Geom.Intersects.RectangleToRectangle(candidate, wallRect)) {
+                return false
+            }
+        }
+
+        for (const otherZone of this.interactables) {
+            if (!otherZone || otherZone === zone) continue
+            const otherRect = new Phaser.Geom.Rectangle(
+                otherZone.x - (otherZone.objectWidth / 2),
+                otherZone.y - (otherZone.objectHeight / 2),
+                otherZone.objectWidth,
+                otherZone.objectHeight
+            )
+            if (Phaser.Geom.Intersects.RectangleToRectangle(candidate, otherRect)) {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    updateActionPrompt() {
+        if (this.introActive || this.dialogueActive) {
+            this.catchPrompt.setVisible(false)
+            return
+        }
+
+        if (this.carriedInteractable) {
+            this.catchPrompt.setText(this.canPlaceCarriedObject ? 'Appuie sur R pour poser l\'objet' : 'Zone non plaçable')
+            this.catchPrompt.setVisible(true)
+            return
+        }
+
+        if (this.currentInteractable) {
+            this.catchPrompt.setVisible(false)
+            return
+        }
+
+        if (this.caughtDistance && !this.catImmobilized) {
+            this.catchPrompt.setText('Appuie sur R pour attraper le chat')
+            this.catchPrompt.setVisible(true)
+            return
+        }
+
+        this.catchPrompt.setVisible(false)
     }
 
     startDialogue() {
@@ -504,7 +810,6 @@ export default class GameScene extends Scene {
 
         this.dialogueActive = true
         this.dialogueIndex = 0
-        // Charger les lignes et le nom depuis l'interactable
         this.dialogueLines = this.currentInteractable.dialogueLines || []
         this.dialogueName.setText(this.currentInteractable.dialogueName || 'Objet')
         this.refreshDialogueUI()
@@ -552,52 +857,46 @@ export default class GameScene extends Scene {
         )
     }
 
-        checkCatBounds() {
-            if (!this.cat) return
-            if (this.isTransitioning) return
+    checkCatBounds() {
+        if (!this.cat) return
+        if (this.isTransitioning) return
 
-            // Limites approximatives de la pièce habitable (voir le screenshot)
-            // La pièce commence après les murs (environ x=80, y=50) 
-            // et finit avant les murs extérieurs (environ x=720, y=450)
-            const ROOM_LEFT = 80
-            const ROOM_RIGHT = 720
-            const ROOM_TOP = 50
-            const ROOM_BOTTOM = 450
+        const ROOM_LEFT = ROOM_BOUNDS.left
+        const ROOM_RIGHT = ROOM_BOUNDS.right
+        const ROOM_TOP = ROOM_BOUNDS.top
+        const ROOM_BOTTOM = ROOM_BOUNDS.bottom
 
-            // Si le chat sort de ces limites, c'est Game Over
-            if (this.cat.x < ROOM_LEFT || 
-                this.cat.x > ROOM_RIGHT || 
-                this.cat.y < ROOM_TOP || 
-                this.cat.y > ROOM_BOTTOM) {
-                
-                console.log(`Le chat s'est échappé à (${this.cat.x.toFixed(0)}, ${this.cat.y.toFixed(0)})! Game Over!`)
-                this.triggerGameOver()
-            }
-        }
-
-        triggerGameOver() {
-            if (this.isTransitioning) {
-                return
-            }
-
-            this.isTransitioning = true
-
-            // Arrêter tous les événements et les  mouvements
-            if (this.glitchRepeater) {
-                this.glitchRepeater.remove()
-            }
-
-            if (this.cat) {
-                this.cat.setVelocity(0, 0)
-            }
-
-            if (this.lia && this.lia.sprite) {
-                this.lia.sprite.setVelocity(0, 0)
-            }
-
-            this.physics.world.pause()
-
-           
-            this.scene.start('GameOverScene')
+        if (this.cat.x < ROOM_LEFT || 
+            this.cat.x > ROOM_RIGHT || 
+            this.cat.y < ROOM_TOP || 
+            this.cat.y > ROOM_BOTTOM) {
+            
+            console.log(`Le chat s'est échappé à (${this.cat.x.toFixed(0)}, ${this.cat.y.toFixed(0)})! Game Over!`)
+            this.triggerGameOver()
         }
     }
+
+    triggerGameOver() {
+        if (this.isTransitioning) {
+            return
+        }
+
+        this.isTransitioning = true
+
+        if (this.glitchRepeater) {
+            this.glitchRepeater.remove()
+        }
+
+        if (this.cat) {
+            this.cat.setVelocity(0, 0)
+        }
+
+        if (this.lia && this.lia.sprite) {
+            this.lia.sprite.setVelocity(0, 0)
+        }
+
+        this.physics.world.pause()
+
+        this.scene.start('GameOverScene')
+    }
+}
