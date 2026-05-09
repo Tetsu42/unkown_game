@@ -1,5 +1,6 @@
 import { Scene, manager } from '@tialops/maki'
 import GlitchEffect from '../effects/GlitchEffect.js'
+import CameraGlitch from '../effects/CameraGlitch.js'
 import Cat from '../Cat.js'
 
 //les messages
@@ -40,6 +41,18 @@ const FURNITURE_DIALOGUES = {
     'bedroom/bed.png': {
         name: 'Petit lit',
         lines: ['Un petit lit. Il semble avoir déjà servi longtemps.']
+    },
+    'bedroom/chair.png': {
+        name: 'Chaise',
+        lines: ['Une chaise confortable. Parfait pour s\'asseoir un moment.']
+    },
+    'bedroom/chairleft.png': {
+        name: 'Chaise gauche',
+        lines: ['Un appui-bras de chaise. C\'est une partie d\'un ensemble.']
+    },
+    'bedroom/chairright.png': {
+        name: 'Chaise droite',
+        lines: ['Un appui-bras de chaise. C\'est une partie d\'un ensemble.']
     }
 }
 
@@ -61,6 +74,20 @@ const ROOM_BOUNDS = {
     right: 720,
     top: 50,
     bottom: 450
+}
+
+const ASH_NPC = {
+    texture: 'ash_front_face',
+    x: 248,
+    y: 200,
+    w: 24,
+    h: 42,
+    name: 'Ash',
+    lines: [
+        'Hey, le bug de la caméra vient du chat qui fout le chaos...',
+        'Pour régler ça, il faut l\'attraper.',
+        'Bonne chance... tu vas en avoir besoin.'
+    ]
 }
 
 export default class GameScene extends Scene {
@@ -90,6 +117,10 @@ export default class GameScene extends Scene {
                 this.load.image(textureKey, `assets/${item.src}`)
             }
         }
+
+        if (!this.textures.exists(ASH_NPC.texture)) {
+            this.load.image(ASH_NPC.texture, 'assets/sprites/ash_front_face.png')
+        }
     }
 
     create() {
@@ -99,6 +130,7 @@ export default class GameScene extends Scene {
         this.initializeState()
         this.setupPlayer()
         this.setupInteractables()
+        this.setupAshNpc()
         this.setupDialogueUi()
         this.setupIntroUi()
         this.setupInput()
@@ -117,6 +149,7 @@ export default class GameScene extends Scene {
             () => this.interactables
         )
         this.physics.add.collider(this.cat, wallGroup)
+        this.setupAshCollision()
         this.syncInteractableCatColliders()
     }
 
@@ -124,6 +157,7 @@ export default class GameScene extends Scene {
         this.interactables = []
         this.currentInteractable = null
         this.carriedInteractable = null
+        this.catCatchActive = false
         this.dialogueActive = false
         this.dialogueLines = []
         this.dialogueIndex = 0
@@ -133,7 +167,6 @@ export default class GameScene extends Scene {
         this.canPlaceCarriedObject = false
         this.catCatchDistance = 60
         this.caughtDistance = false
-        this.catImmobilized = false
         this.fillProgress = 0
         this.fillMaxTime = 3000
     }
@@ -170,7 +203,9 @@ export default class GameScene extends Scene {
         this.currentInteractable = found
 
         this.interactPrompt.setText(found && !this.carriedInteractable
-            ? `E : interagir | R : déplacer (${found.dialogueName || 'objet'})`
+            ? (found.isMovable === false
+                ? `E : interagir (${found.dialogueName || 'objet'})`
+                : `E : interagir | R : déplacer (${found.dialogueName || 'objet'})`)
             : 'Appuie sur E pour parler')
         this.interactPrompt.setVisible(!!found && !this.dialogueActive && !this.carriedInteractable)
 
@@ -189,11 +224,9 @@ export default class GameScene extends Scene {
     attemptCatchCat() {
         if (!this.cat) return
 
-        if (typeof this.cat.immobilize === 'function') {
-            this.cat.immobilize()
-        }
-        this.catImmobilized = true
+        this.catCatchActive = true
         this.fillProgress = 0
+        this.gaugeFill.setDisplaySize(0, 8)
         this.gaugeBackground.setVisible(true)
     }
 
@@ -207,29 +240,64 @@ export default class GameScene extends Scene {
 
         this.caughtDistance = distance < this.catCatchDistance
 
-        if (this.caughtDistance && this.catImmobilized) {
-            this.fillProgress += this.game.loop.delta
+        // Démarrer automatiquement la tentative de capture si le joueur est à la bonne distance
+        if (this.caughtDistance && !this.catCatchActive) {
+            this.catCatchActive = true
+            this.fillProgress = 0
+            try {
+                this.gaugeFill.setDisplaySize(0, 8)
+                this.gaugeBackground.setVisible(true)
+            } catch (e) { }
+        }
+
+        if (!this.catCatchActive) {
+            this.gaugeFill.setDisplaySize(0, 8)
+            this.gaugeBackground.setVisible(false)
+            return
+        }
+
+        let catBlocked = false
+        if (typeof this.cat.isTrulyBlocked === 'function') {
+            catBlocked = this.cat.isTrulyBlocked()
+        } else {
+            catBlocked = (this.cat.stuckTimer > 120)
+        }
+        // Si la vitesse du chat est très faible, considérer comme bloqué (cas où il est collé)
+        try {
+            const vx = this.cat.body?.velocity?.x || 0
+            const vy = this.cat.body?.velocity?.y || 0
+            const speed = Math.sqrt(vx * vx + vy * vy)
+            if (speed < 6) catBlocked = true
+        } catch (e) { }
+
+        if (this.caughtDistance && catBlocked) {
+            const delta = Math.min(this.game.loop.delta || 16, 33)
+            this.fillProgress += delta
 
             const gaugeFillWidth = (this.fillProgress / this.fillMaxTime) * 80
-            this.gaugeFill.setDisplaySize(Math.min(gaugeFillWidth, 80), 8)
             this.gaugeBackground.x = this.cat.x
             this.gaugeBackground.y = this.cat.y - 40
             this.gaugeFill.x = this.gaugeBackground.x - 40
             this.gaugeFill.y = this.gaugeBackground.y
             this.gaugeBackground.setVisible(true)
+            this.gaugeFill.setDisplaySize(Math.max(2, Math.min(gaugeFillWidth, 80)), 8)
 
             if (this.fillProgress >= this.fillMaxTime) {
                 this.triggerVictory()
             }
-        } else if (this.catImmobilized && !this.caughtDistance) {
-            if (typeof this.cat.free === 'function') this.cat.free()
-            this.catImmobilized = false
+        } else if (!this.caughtDistance) {
             this.fillProgress = 0
             this.gaugeFill.setDisplaySize(0, 8)
             this.gaugeBackground.setVisible(false)
+            // arrêter la tentative automatique si le joueur s'éloigne
+            this.catCatchActive = false
         } else {
+            this.gaugeBackground.x = this.cat.x
+            this.gaugeBackground.y = this.cat.y - 40
+            this.gaugeFill.x = this.gaugeBackground.x - 40
+            this.gaugeFill.y = this.gaugeBackground.y
+            this.gaugeBackground.setVisible(true)
             this.gaugeFill.setDisplaySize(0, 8)
-            this.gaugeBackground.setVisible(false)
         }
     }
 
@@ -295,7 +363,7 @@ export default class GameScene extends Scene {
     }
 
     setupPlayer() {
-        if (typeof this.lia.speed === 'undefined') this.lia.speed = 130
+        if (typeof this.lia.speed === 'undefined') this.lia.speed = 110
 
         this.lia.sprite.setPosition(200, 200)
         this.lia.sprite.setScale(0.5)
@@ -314,6 +382,33 @@ export default class GameScene extends Scene {
 
             this.createInteractable(item, dialogue.lines, dialogue.name)
         }
+    }
+
+    setupAshNpc() {
+        this.ashSprite = this.add.image(ASH_NPC.x, ASH_NPC.y, ASH_NPC.texture)
+        this.ashSprite.setScale(this.lia.sprite.scaleX, this.lia.sprite.scaleY)
+        this.ashSprite.setDepth(this.lia.sprite.depth)
+
+        this.physics.world.enable(this.ashSprite)
+        this.ashSprite.body.setAllowGravity(false)
+        this.ashSprite.body.setImmovable(true)
+        this.ashSprite.body.moves = false
+
+        const zone = this.add.zone(ASH_NPC.x, ASH_NPC.y, ASH_NPC.w, ASH_NPC.h)
+        zone.dialogueLines = ASH_NPC.lines
+        zone.dialogueName = ASH_NPC.name
+        zone.objectWidth = ASH_NPC.w
+        zone.objectHeight = ASH_NPC.h
+        zone.isMovable = false
+        zone.isNpc = true
+        this.interactables.push(zone)
+    }
+
+    setupAshCollision() {
+        if (!this.ashSprite || !this.cat || !this.lia?.sprite) return
+
+        this.physics.add.collider(this.lia.sprite, this.ashSprite)
+        this.physics.add.collider(this.cat, this.ashSprite)
     }
 
     setupDialogueUi() {
@@ -451,11 +546,14 @@ export default class GameScene extends Scene {
             }
 
             if (this.currentInteractable) {
+                if (this.currentInteractable.isMovable === false) {
+                    return
+                }
                 this.pickUpInteractable(this.currentInteractable)
                 return
             }
 
-            if (this.caughtDistance && !this.catImmobilized) {
+            if (this.caughtDistance) {
                 this.attemptCatchCat()
             }
         }
@@ -463,6 +561,7 @@ export default class GameScene extends Scene {
         this.input.keyboard.on('keydown-SPACE', this.onSpaceDown)
         this.input.keyboard.on('keydown-E', this.onEDown)
         this.input.keyboard.on('keydown-R', this.onRDown)
+        // (G key removed) automatic camera glitch will run on a timer.
     }
 
     setupGlitchEffects() {
@@ -480,6 +579,7 @@ export default class GameScene extends Scene {
     setupShutdownCleanup() {
         this.events.once('shutdown', () => {
             if (this.glitchRepeater) this.glitchRepeater.remove()
+            if (this.cameraGlitchRepeater) this.cameraGlitchRepeater.remove()
             if (this.input?.keyboard) {
                 if (this.onSpaceDown) this.input.keyboard.off('keydown-SPACE', this.onSpaceDown)
                 if (this.onEDown) this.input.keyboard.off('keydown-E', this.onEDown)
@@ -487,6 +587,9 @@ export default class GameScene extends Scene {
             }
             if (this.lia && this.lia.sprite) {
                 this.lia.sprite.destroy()
+            }
+            if (this.ashSprite) {
+                this.ashSprite.destroy()
             }
             if (this.cat) {
                 this.cat.destroy()
@@ -543,6 +646,7 @@ export default class GameScene extends Scene {
         zone.dialogueName = name || 'Objet'
         zone.objectWidth = item.w
         zone.objectHeight = item.h
+        zone.isMovable = true
         zone.textureKey = this.getFurnitureTextureKey(item.src)
         zone.sourcePath = item.src
         zone.movableSprite = this.findExistingFurnitureSprite(item)
@@ -627,6 +731,7 @@ export default class GameScene extends Scene {
     // ✅ SIMPLIFIED: Keep body active so the cat still collides with the object
     pickUpInteractable(zone) {
         if (!zone) return
+        if (zone.isMovable === false) return
         if (this.dialogueActive) {
             this.endDialogue()
         }
@@ -796,7 +901,7 @@ export default class GameScene extends Scene {
             return
         }
 
-        if (this.caughtDistance && !this.catImmobilized) {
+        if (this.caughtDistance) {
             this.catchPrompt.setText('Appuie sur R pour attraper le chat')
             this.catchPrompt.setVisible(true)
             return
@@ -841,6 +946,23 @@ export default class GameScene extends Scene {
         this.introTitle.setVisible(false)
         this.introText.setVisible(false)
         this.introHint.setVisible(false)
+        // Lancer immédiatement un glitch caméra à la fin de l'intro
+        try {
+            CameraGlitch.apply(this.cameras.main, this, { duration: 420, intensity: 0.02, jitter: 10, rgb: 380 })
+        } catch (e) { }
+
+        // Puis démarrer le répéteur toutes les 10s
+        if (!this.cameraGlitchRepeater) {
+            this.cameraGlitchRepeater = this.time.addEvent({
+                delay: 10000,
+                loop: true,
+                callback: () => {
+                    if (!this.dialogueActive) {
+                        CameraGlitch.apply(this.cameras.main, this, { duration: 420, intensity: 0.02, jitter: 10, rgb: 380 })
+                    }
+                }
+            })
+        }
     }
 
     refreshDialogueUI() {
@@ -850,11 +972,7 @@ export default class GameScene extends Scene {
         this.dialogueHint.setVisible(true)
         
         this.dialogueText.setText(this.dialogueLines[this.dialogueIndex])
-        this.dialogueHint.setText(
-            this.dialogueIndex === this.dialogueLines.length - 1
-                ? 'Espace pour fermer'
-                : 'Espace pour continuer'
-        )
+        this.dialogueHint.setText('E pour continuer')
     }
 
     checkCatBounds() {

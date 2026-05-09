@@ -310,4 +310,16 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
     free() {
         this.isImmobilized = false;
     }
+
+    isTrulyBlocked() {
+        if (!this.body) return false;
+
+        return (
+            this.stuckTimer > 120 ||
+            this.body.blocked.left ||
+            this.body.blocked.right ||
+            this.body.blocked.up ||
+            this.body.blocked.down
+        );
+    }
 }

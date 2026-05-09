@@ -5,7 +5,7 @@ import VictoryScene from './scenes/VictoryScene.js'
 
 new Phaser.Game({
     type: Phaser.AUTO,
-    width: 800,
+    width: 900,
     height: 600,
     backgroundColor: '#070708',
     physics: {
