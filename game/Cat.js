@@ -135,7 +135,7 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
     }
 
     updateAI(delta) {
-        // 👹 Comportement agressif : le chat poursuit le joueur
+        // poursuit le joeur
         if (this.isAggressive && !this.isImmobilized && this.player) {
             const target = this.player;
             const dx = target.x - this.x;
@@ -152,7 +152,7 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
             return;
         }
 
-        // 🍽️ Attirance vers la nourriture portée (seulement si non agressif)
+        // Attirance vers la nourriture portée
         const carried = this.scene.carriedInteractable;
         const isCarryingFood = carried && this.scene.isFoodItem && this.scene.isFoodItem(carried);
 
@@ -172,7 +172,7 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
             return;
         }
 
-        // 🐾 Comportement normal (fuite / poursuite) – seulement si non agressif et pas de nourriture portée
+        //Comportement normal
         if (!this.player || this.isImmobilized) {
             this.setVelocity(0, 0);
             return;
