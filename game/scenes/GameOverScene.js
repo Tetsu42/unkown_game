@@ -14,6 +14,7 @@ export default class GameOverScene extends Scene {
             if (this.isRestarting) return
             this.isRestarting = true
             buttonBg.disableInteractive()
+            this.registry.set('musicPlaying', false)
             this.scene.stop('VictoryScene')
             this.scene.start('GameScene')
         }
@@ -78,7 +79,7 @@ export default class GameOverScene extends Scene {
         // Click pour recommencer
         buttonBg.once('pointerdown', restartGame)
 
-        // ou :Entrée/ Espace pour recommencer
+        // ou :Entrée/ Espace pour recommencer \(*-*)/
         this.input.keyboard.once('keydown-SPACE', restartGame)
         this.input.keyboard.once('keydown-ENTER', restartGame)
     }

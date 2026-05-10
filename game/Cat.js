@@ -12,9 +12,11 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
         this.fleeSpeed = 168;
         this.fleeDistance = 240;
 
+        this.foodCollected = 0;
+        this.isAggressive = false;
+
         this.repathDelay = 70;
         this.repathTimer = 0;
-
         this.stuckTimer = 0;
         this.lastX = x;
         this.lastY = y;
@@ -27,7 +29,6 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
         scene.add.existing(this);
         scene.physics.add.existing(this);
         this.setCollideWorldBounds(true);
-        this.setBounce(0);
         this.body.setAllowGravity(false);
         this.setScale(0.35);
         this.createAnimations();
@@ -39,7 +40,6 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
         directions.forEach(dir => {
             const animKey = `cat_${dir}`;
             if (this.scene.anims.exists(animKey)) return;
-
             const frames = [];
             for (let i = 1; i <= 6; i++) {
                 frames.push({ key: `cat_${dir}${i}` });
@@ -56,38 +56,137 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
     preUpdate(time, delta) {
         super.preUpdate(time, delta);
         this.updateAI(delta);
+        this.checkFoodConsumption();
     }
 
-    updateAI(delta = 16) {
-        const player = this.player;
-        if (!player) {
+    checkFoodConsumption() {
+        // Vérifier si le joueur porte un aliment
+        const carried = this.scene.carriedInteractable;
+        if (carried && this.scene.isFoodItem && this.scene.isFoodItem(carried)) {
+            const dist = Phaser.Math.Distance.Between(this.x, this.y, carried.x, carried.y);
+            if (dist < 35) {
+                const idx = this.scene.foodItems.indexOf(carried);
+                if (idx !== -1) this.eat(carried, idx);
+                else this.eat(carried, 0);
+                return;
+            }
+        }
+
+        // Sécurité : au cas où d'autres aliments traîneraient (normalement aucun)
+        if (!this.scene.foodItems || this.scene.foodItems.length === 0) return;
+        for (let i = this.scene.foodItems.length - 1; i >= 0; i--) {
+            const food = this.scene.foodItems[i];
+            const dist = Phaser.Math.Distance.Between(this.x, this.y, food.x, food.y);
+            if (dist < 35) {
+                this.eat(food, i);
+            }
+        }
+    }
+
+    eat(food, index) {
+        this.foodCollected++;
+
+        // Destruction des colliders
+        if (food.playerCollider) food.playerCollider.destroy();
+        if (food.catCollider) food.catCollider.destroy();
+
+        // Destruction du sprite visuel
+        if (food.movableSprite) food.movableSprite.destroy();
+
+        // Destruction éventuelle de l'image décorative
+        const existingImg = this.scene.children.list.find(child =>
+            child.texture && child.texture.key === food.textureKey &&
+            Math.abs(child.x - food.x) < 5 && Math.abs(child.y - food.y) < 5
+        );
+        if (existingImg) existingImg.destroy();
+
+        // Si l'objet mangé était porté, nettoyer la référence
+        if (this.scene.carriedInteractable === food) {
+            this.scene.carriedInteractable = null;
+            this.scene.canPlaceCarriedObject = false;
+            if (this.scene.catchPrompt) this.scene.catchPrompt.setVisible(false);
+        }
+
+        // Destruction de la zone physique
+        food.destroy();
+
+        // Retrait des listes
+        this.scene.foodItems.splice(index, 1);
+        const interactIdx = this.scene.interactables.indexOf(food);
+        if (interactIdx !== -1) this.scene.interactables.splice(interactIdx, 1);
+
+        // Feedback UI
+        if (this.scene.catchPrompt) {
+            this.scene.catchPrompt.setText(`Le chat a mangé ! (${this.foodCollected}/3)`);
+            this.scene.catchPrompt.setVisible(true);
+            this.scene.time.delayedCall(1500, () => this.scene.catchPrompt.setVisible(false));
+        }
+
+        if (this.foodCollected >= 3) this.becomeAggressive();
+    }
+
+    becomeAggressive() {
+        this.isAggressive = true;
+        // On réduit la distance de fuite à 0 pour qu'il ne fuie plus, mais on utilise un comportement de poursuite
+        this.fleeDistance = 0;
+        this.baseSpeed = 200;
+        this.fleeSpeed = 250;
+        this.setTint(0xff5555);
+    }
+
+    updateAI(delta) {
+        // 👹 Comportement agressif : le chat poursuit le joueur
+        if (this.isAggressive && !this.isImmobilized && this.player) {
+            const target = this.player;
+            const dx = target.x - this.x;
+            const dy = target.y - this.y;
+            const len = Math.hypot(dx, dy);
+            if (len > 0.01) {
+                const vx = (dx / len) * this.baseSpeed;
+                const vy = (dy / len) * this.baseSpeed;
+                this.setVelocity(vx, vy);
+                this.playMovementAnimation(vx, vy);
+            } else {
+                this.setVelocity(0, 0);
+            }
+            return;
+        }
+
+        // 🍽️ Attirance vers la nourriture portée (seulement si non agressif)
+        const carried = this.scene.carriedInteractable;
+        const isCarryingFood = carried && this.scene.isFoodItem && this.scene.isFoodItem(carried);
+
+        if (isCarryingFood && !this.isImmobilized) {
+            const target = carried;
+            const dx = target.x - this.x;
+            const dy = target.y - this.y;
+            const len = Math.hypot(dx, dy);
+            if (len > 0.01) {
+                const vx = (dx / len) * this.baseSpeed;
+                const vy = (dy / len) * this.baseSpeed;
+                this.setVelocity(vx, vy);
+                this.playMovementAnimation(vx, vy);
+            } else {
+                this.setVelocity(0, 0);
+            }
+            return;
+        }
+
+        // 🐾 Comportement normal (fuite / poursuite) – seulement si non agressif et pas de nourriture portée
+        if (!this.player || this.isImmobilized) {
             this.setVelocity(0, 0);
             return;
         }
 
-        if (this.isImmobilized) {
-            this.setVelocity(0, 0);
-            this.anims.stop();
-            return;
-        }
-
-        const dx = this.x - player.x;
-        const dy = this.y - player.y;
+        const dx = this.x - this.player.x;
+        const dy = this.y - this.player.y;
         const distSq = dx * dx + dy * dy;
         const fleeDistanceSq = this.fleeDistance * this.fleeDistance;
         const isFleeing = distSq < fleeDistanceSq;
         const speed = isFleeing ? this.fleeSpeed : this.baseSpeed;
 
-        // Vérifier blocage
-        const isBlocked =
-            this.body.blocked.left ||
-            this.body.blocked.right ||
-            this.body.blocked.up ||
-            this.body.blocked.down;
-
         const moved = Phaser.Math.Distance.Between(this.x, this.y, this.lastX, this.lastY);
-
-        if (isBlocked || (speed > 0 && moved < 2)) {
+        if (this.body.blocked.none === false || (speed > 0 && moved < 2)) {
             this.stuckTimer += delta;
         } else {
             this.stuckTimer = 0;
@@ -96,30 +195,14 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
         this.lastX = this.x;
         this.lastY = this.y;
         this.repathTimer -= delta;
-        if (this.stuckCooldown > 0) this.stuckCooldown -= delta;
 
-        // Repath urgence
-        if (this.stuckTimer > 40 && this.stuckCooldown <= 0) {
-            this.repathTimer = 0;
-            this.stuckTimer = 0;
-            this.stuckCooldown = isFleeing ? 100 : 200;
-        }
-
-        // Repath normal (RÉDUIT: 8 directions au lieu de 32, tests minimaux)
         if (this.repathTimer <= 0) {
-            this.pickNewDirectionFast(isFleeing, player);
+            this.pickNewDirectionFast(isFleeing, this.player);
             this.repathTimer = (isFleeing ? this.repathDelay * 0.2 : this.repathDelay) + Phaser.Math.Between(0, 20);
         }
 
-        // Fallback si aucune direction
-        if (this.moveVector.lengthSq() === 0) {
-            const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-            this.moveVector.set(Math.cos(angle), Math.sin(angle));
-        }
-
-        // Déblocage d'urgence si vraiment stuck
-        if (this.stuckTimer > 150 && isBlocked && moved < 1) {
-            this.forceUnstuck(isFleeing, player);
+        if (this.stuckTimer > 150) {
+            this.forceUnstuck(isFleeing, this.player);
         }
 
         const vx = this.moveVector.x * speed;
@@ -128,45 +211,22 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
         this.playMovementAnimation(vx, vy);
     }
 
-    /**
-     * VERSION OPTIMISÉE: Seulement 8 directions, pas de scoring complexe
-     */
     pickNewDirectionFast(isFleeing, player) {
         const NUM_ANGLES = 8;
         const STEP = 30;
-        
         let bestVector = null;
         let bestScore = -Infinity;
-        let anyValid = null;
 
         for (let i = 0; i < NUM_ANGLES; i++) {
             const angle = (i / NUM_ANGLES) * Math.PI * 2;
             const vx = Math.cos(angle);
             const vy = Math.sin(angle);
 
-            // Test rapide: le chemin immédiat est-il libre?
-            if (this.isDirectionBlocked(vx, vy, STEP)) {
-                continue; // Complètement bloqué, skip
-            }
+            if (this.isDirectionBlocked(vx, vy, STEP)) continue;
 
-            anyValid = { vx, vy };
-            let score = 0;
-
-            if (isFleeing) {
-                // Score simple: juste l'éloignement du joueur
-                const futureX = this.x + vx * STEP;
-                const futureY = this.y + vy * STEP;
-                score = Phaser.Math.Distance.Between(futureX, futureY, player.x, player.y);
-                score += Phaser.Math.FloatBetween(-10, 10); // Random pour variété
-            } else {
-                // Déambulation: préférer continuer droit
-                if (this.moveVector.lengthSq() > 0) {
-                    const dot = vx * this.moveVector.x + vy * this.moveVector.y;
-                    score = dot + Phaser.Math.FloatBetween(-2, 2);
-                } else {
-                    score = Phaser.Math.FloatBetween(0, 3);
-                }
-            }
+            let score = isFleeing 
+                ? Phaser.Math.Distance.Between(this.x + vx * STEP, this.y + vy * STEP, player.x, player.y)
+                : (vx * this.moveVector.x + vy * this.moveVector.y);
 
             if (score > bestScore) {
                 bestScore = score;
@@ -176,150 +236,44 @@ export default class Cat extends Phaser.Physics.Arcade.Sprite {
 
         if (bestVector) {
             this.moveVector.set(bestVector.vx, bestVector.vy).normalize();
-            return;
         }
-
-        // Fallback: n'importe quelle direction valide
-        if (anyValid) {
-            this.moveVector.set(anyValid.vx, anyValid.vy).normalize();
-            return;
-        }
-
-        // En fuite: s'éloigner coûte que coûte
-        if (isFleeing && this.moveVector.lengthSq() === 0) {
-            const dx = this.x - player.x;
-            const dy = this.y - player.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > 0) {
-                this.moveVector.set(dx / dist, dy / dist).normalize();
-                return;
-            }
-        }
-
-        // Secours ultime: direction aléatoire
-        const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-        this.moveVector.set(Math.cos(angle), Math.sin(angle));
     }
 
-    /**
-     * Test ultra-rapide: 1 seule vérification au lieu de 12
-     */
     isDirectionBlocked(vx, vy, stepSize) {
-        // Test juste le premier pas
         const testX = this.x + vx * stepSize;
         const testY = this.y + vy * stepSize;
-
         const blockers = [];
-        if (this.wallGroup && typeof this.wallGroup.getChildren === 'function') {
-            blockers.push(...this.wallGroup.getChildren());
-        }
+        if (this.wallGroup?.getChildren) blockers.push(...this.wallGroup.getChildren());
         if (typeof this.obstacleProvider === 'function') {
             const extra = this.obstacleProvider();
             if (Array.isArray(extra)) blockers.push(...extra);
         }
 
-        // Vérification minimale
-        const padding = 8;
         for (const blocker of blockers) {
-            if (!blocker?.getBounds) continue;
-            const bounds = blocker.getBounds();
-            if (testX >= bounds.left - padding && testX <= bounds.right + padding &&
-                testY >= bounds.top - padding && testY <= bounds.bottom + padding) {
+            if (!blocker?.getBounds || blocker === this) continue;
+            const b = blocker.getBounds();
+            if (testX >= b.left - 5 && testX <= b.right + 5 && testY >= b.top - 5 && testY <= b.bottom + 5) {
                 return true;
             }
         }
         return false;
     }
 
-    /**
-     * Déblocage d'urgence simple et rapide
-     */
     forceUnstuck(isFleeing, player) {
-        // Fuite: s'éloigner du joueur
-        if (isFleeing) {
-            const dx = this.x - player.x;
-            const dy = this.y - player.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > 0) {
-                this.moveVector.set(dx / dist, dy / dist).normalize();
-                return;
-            }
-        }
-
-        // Sinon: essayer 8 directions rapides
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2;
-            const vx = Math.cos(angle);
-            const vy = Math.sin(angle);
-
-            // Test ultra-permissif: juste 3px
-            const testX = this.x + vx * 3;
-            const testY = this.y + vy * 3;
-
-            const blockers = [];
-            if (this.wallGroup?.getChildren) blockers.push(...this.wallGroup.getChildren());
-            if (typeof this.obstacleProvider === 'function') {
-                const extra = this.obstacleProvider();
-                if (Array.isArray(extra)) blockers.push(...extra);
-            }
-
-            // Vérification minimale (2px padding)
-            let blocked = false;
-            for (const blocker of blockers) {
-                if (!blocker?.getBounds) continue;
-                const bounds = blocker.getBounds();
-                if (testX >= bounds.left - 2 && testX <= bounds.right + 2 &&
-                    testY >= bounds.top - 2 && testY <= bounds.bottom + 2) {
-                    blocked = true;
-                    break;
-                }
-            }
-            
-            if (!blocked) {
-                this.moveVector.set(vx, vy).normalize();
-                return;
-            }
-        }
-
-        // Dernier recours
         const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
         this.moveVector.set(Math.cos(angle), Math.sin(angle));
+        this.stuckTimer = 0;
     }
 
     playMovementAnimation(vx, vy) {
-        let dir = 'down';
-        if (Math.abs(vx) > Math.abs(vy)) {
-            dir = vx > 0 ? 'right' : 'left';
-        } else {
-            dir = vy > 0 ? 'down' : 'up';
-        }
-
+        let dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
         if (this.direction !== dir) {
             this.direction = dir;
             this.anims.play(`cat_${dir}`, true);
         }
     }
 
-    immobilize() {
-        this.isImmobilized = true;
-        this.moveVector.set(0, 0);
-        this.setVelocity(0, 0);
-        this.anims.stop();
-    }
-
-    free() {
-        this.isImmobilized = false;
-    }
-
     isTrulyBlocked() {
-        if (!this.body) return false;
-
-        return (
-            this.stuckTimer > 120 ||
-            this.body.blocked.left ||
-            this.body.blocked.right ||
-            this.body.blocked.up ||
-            this.body.blocked.down
-        );
+        return this.stuckTimer > 100 || (this.body && !this.body.blocked.none);
     }
 }
