@@ -16,6 +16,7 @@ Le paquet `@tialops/maki` est installé localement. Voici les commandes disponib
 
 ```bash
 # Lancer le serveur de développement
+npm install (installer les paquets)
 npm run dev
 # ou
 npm run maki -- dev
