@@ -26,18 +26,6 @@ const FURNITURE_DIALOGUES = {
             'Tu as envie de la toucher, mais tu hésites.'
         ]
     },
-    'bedroom/queenbed.png': {
-        name: 'Lit',
-        lines: ['Un grand lit confortable.']
-    },
-    'bedroom/lamp.png': {
-        name: 'Lampe',
-        lines: ['Une lampe qui éclaire faiblement la pièce.']
-    },
-    'bedroom/doll.png': {
-        name: 'Poupée',
-        lines: ['Une poupée immobile. Son regard est un peu étrange.']
-    },
     'bedroom/bed.png': {
         name: 'Petit lit',
         lines: ['Un petit lit. Il semble avoir déjà servi longtemps.']
@@ -53,27 +41,103 @@ const FURNITURE_DIALOGUES = {
     'bedroom/chairright.png': {
         name: 'Chaise droite',
         lines: ['Un appui-bras de chaise. C\'est une partie d\'un ensemble.']
+    },
+    'bedroom/doll.png': {
+        name: 'Poupée',
+        lines: ['Une poupée immobile. Son regard est un peu étrange.']
+    },
+    'kitchen/food.png': {
+        name: 'Nourriture',
+        lines: ['De la nourriture. Ça sent bon.']
+    },
+    'random/guitar.png': {
+        name: 'Guitare',
+        lines: ['Une guitare. Peut-être que quelqu\'un la joue parfois.']
+    },
+    'bedroom/desk.png': {
+        name: 'Bureau',
+        lines: ['Un bureau de travail. Bien organisé.']
+    },
+    'random/canape.png': {
+        name: 'Canapé',
+        lines: ['Un canapé confortable pour se relaxer.']
+    },
+    'random/table.png': {
+        name: 'Table',
+        lines: ['Une table basse. Pratique pour poser les choses.']
+    },
+    'random/canape2.png': {
+        name: 'Canapé 2',
+        lines: ['Un autre canapé. Peut-être un endroit pour se reposer.']
+    },
+    'bedroom/queenbed2.png': {
+        name: 'Grand lit',
+        lines: ['Un grand lit spacieux. Très confortable.']
+    },
+    'bedroom/mirror.png': {
+        name: 'Miroir',
+        lines: ['Un miroir. Tu y vois ton reflet.']
+    },
+    'bedroom/library.png': {
+        name: 'Bibliothèque',
+        lines: ['Une bibliothèque remplie de livres. Beaucoup de lectures possibles.']
+    },
+    'bedroom/chair2.png': {
+        name: 'Chaise 2',
+        lines: ['Une autre chaise. Confortable et pratique.']
+    },
+    'bedroom/lamp.png': {
+        name: 'Lampe',
+        lines: ['Une lampe qui éclaire faiblement la pièce.']
+    },
+    'bedroom/fenetre.png': {
+        name: 'Fenêtre',
+        lines: ['Une fenêtre. Elle donne sur l\'extérieur.']
+    },
+    'bedroom/rideau.png': {
+        name: 'Rideau',
+        lines: ['Un rideau. Il filtre la lumière du jour.']
+    },
+    'bedroom/bacon_dish.png': {
+        name: 'Assiette de bacon',
+        lines: ['Une assiette avec du bacon. Délicieux!']
+    },
+    'bedroom/burrito.png': {
+        name: 'Burrito',
+        lines: ['Un burrito savoureux. Ça donne faim!']
     }
 }
 
 const FURNITURE_OBJECTS = [
     { src: 'random/piano.png', x: 112, y: 112, w: 32, h: 48 },
-    { src: 'bedroom/queenbed.png', x: 640, y: 128, w: 32, h: 48 },
     { src: 'bedroom/chair.png', x: 624, y: 304, w: 32, h: 32 },
     { src: 'bedroom/chairleft.png', x: 656, y: 320, w: 16, h: 32 },
     { src: 'bedroom/chairright.png', x: 608, y: 320, w: 16, h: 32 },
-    { src: 'bedroom/lamp.png', x: 672, y: 112, w: 16, h: 48 },
     { src: 'bedroom/doll.png', x: 656, y: 176, w: 32, h: 32 },
     { src: 'random/harp.png', x: 496, y: 192, w: 32, h: 32 },
-    { src: 'random/plants.png', x: 304, y: 176, w: 32, h: 48 },
-    { src: 'bedroom/bed.png', x: 496, y: 304, w: 16, h: 48 }
+    { src: 'bedroom/bed.png', x: 496, y: 304, w: 16, h: 48 },
+    { src: 'kitchen/food.png', x: 672, y: 16, w: 16, h: 32 },
+    { src: 'random/guitar.png', x: 544, y: 16, w: 16, h: 48 },
+    { src: 'bedroom/desk.png', x: 640, y: 448, w: 32, h: 32 },
+    { src: 'random/canape.png', x: 320, y: 224, w: 22, h: 46 },
+    { src: 'random/table.png', x: 352, y: 224, w: 32, h: 32 },
+    { src: 'random/canape2.png', x: 336, y: 192, w: 46, h: 32 },
+    { src: 'random/plants.png', x: 176, y: 304, w: 32, h: 48 },
+    { src: 'bedroom/queenbed2.png', x: 240, y: 528, w: 46, h: 60, movable: false },
+    { src: 'bedroom/mirror.png', x: 752, y: 288, w: 16, h: 16 },
+    { src: 'bedroom/library.png', x: 592, y: 432, w: 32, h: 43 },
+    { src: 'bedroom/chair2.png', x: 656, y: 464, w: 16, h: 31 },
+    { src: 'bedroom/lamp.png', x: 288, y: 512, w: 16, h: 48 },
+    // ✅ Fenêtres et rideaux SUPPRIMÉS (ne pas les rendre interactifs)
+    { src: 'bedroom/bacon_dish.png', x: 480, y: 576, w: 16, h: 16 },
+    { src: 'bedroom/burrito.png', x: 368, y: 224, w: 16, h: 16 }
 ]
 
 const ROOM_BOUNDS = {
     left: 80,
-    right: 720,
+    right: 800,  // ✅ Augmenté pour la nouvelle map
     top: 50,
-    bottom: 450
+    bottom: 600  // ✅ Augmenté pour la nouvelle map
 }
 
 const ASH_NPC = {
@@ -111,6 +175,7 @@ export default class GameScene extends Scene {
             }
         })
 
+        // ✅ Charger UNIQUEMENT les textures depuis FURNITURE_OBJECTS
         for (const item of FURNITURE_OBJECTS) {
             const textureKey = this.getFurnitureTextureKey(item.src)
             if (!this.textures.exists(textureKey)) {
@@ -138,7 +203,6 @@ export default class GameScene extends Scene {
         this.setupGlitchEffects()
         this.setupShutdownCleanup()
 
-        // Ajout du chat (le joueur est this.lia.sprite)
         const wallGroup = manager.getWallGroup(this, 'room1')
         this.cat = new Cat(
             this,
@@ -169,6 +233,8 @@ export default class GameScene extends Scene {
         this.caughtDistance = false
         this.fillProgress = 0
         this.fillMaxTime = 3000
+        this.foodCollected = 0  // ✅ Compteur de nourriture collectée par le chat
+        this.foodItems = []  // ✅ Liste des items de nourriture sur la map
     }
 
     update() {
@@ -182,8 +248,10 @@ export default class GameScene extends Scene {
         }
 
         this.checkCatBounds()
+        
+        // ✅ Vérifier si le chat collecte de la nourriture
+        this.checkCatFoodCollision()
 
-        // Vérifier si on est dans une zone d'un interactable
         let found = null
         for (let i = 0; i < this.interactables.length; i++) {
             const zone = this.interactables[i]
@@ -238,9 +306,13 @@ export default class GameScene extends Scene {
             this.lia.sprite.x, this.lia.sprite.y
         )
 
-        this.caughtDistance = distance < this.catCatchDistance
+        // ✅ Si le chat a mangé 3 fois, il devient agressif
+        if (this.foodCollected >= 3) {
+            this.caughtDistance = distance < 150  // ✅ Distance aggravée (3x plus proche)
+        } else {
+            this.caughtDistance = distance < this.catCatchDistance
+        }
 
-        // Démarrer automatiquement la tentative de capture si le joueur est à la bonne distance
         if (this.caughtDistance && !this.catCatchActive) {
             this.catCatchActive = true
             this.fillProgress = 0
@@ -262,7 +334,6 @@ export default class GameScene extends Scene {
         } else {
             catBlocked = (this.cat.stuckTimer > 120)
         }
-        // Si la vitesse du chat est très faible, considérer comme bloqué (cas où il est collé)
         try {
             const vx = this.cat.body?.velocity?.x || 0
             const vy = this.cat.body?.velocity?.y || 0
@@ -289,7 +360,6 @@ export default class GameScene extends Scene {
             this.fillProgress = 0
             this.gaugeFill.setDisplaySize(0, 8)
             this.gaugeBackground.setVisible(false)
-            // arrêter la tentative automatique si le joueur s'éloigne
             this.catCatchActive = false
         } else {
             this.gaugeBackground.x = this.cat.x
@@ -376,6 +446,7 @@ export default class GameScene extends Scene {
     }
 
     setupInteractables() {
+        // ✅ Charger UNIQUEMENT les objets depuis le code (pas de doublons de la map)
         for (const item of FURNITURE_OBJECTS) {
             const dialogue = FURNITURE_DIALOGUES[item.src]
             if (!dialogue) continue
@@ -546,7 +617,10 @@ export default class GameScene extends Scene {
             }
 
             if (this.currentInteractable) {
+                // ✅ Vérifier si l'objet est déplaçable
                 if (this.currentInteractable.isMovable === false) {
+                    // Afficher un message rigolo pendant 2 secondes
+                    this.showFunnyMessage(`Tu n'as pas la force de déplacer ce ${this.currentInteractable.dialogueName}...`)
                     return
                 }
                 this.pickUpInteractable(this.currentInteractable)
@@ -561,7 +635,6 @@ export default class GameScene extends Scene {
         this.input.keyboard.on('keydown-SPACE', this.onSpaceDown)
         this.input.keyboard.on('keydown-E', this.onEDown)
         this.input.keyboard.on('keydown-R', this.onRDown)
-        // (G key removed) automatic camera glitch will run on a timer.
     }
 
     setupGlitchEffects() {
@@ -646,18 +719,29 @@ export default class GameScene extends Scene {
         zone.dialogueName = name || 'Objet'
         zone.objectWidth = item.w
         zone.objectHeight = item.h
-        zone.isMovable = true
+        zone.isMovable = item.movable !== false  // ✅ Vérifier si l'objet est déplaçable
         zone.textureKey = this.getFurnitureTextureKey(item.src)
         zone.sourcePath = item.src
         zone.movableSprite = this.findExistingFurnitureSprite(item)
         zone.createdMovableSprite = false
+        
+        // ✅ Marquer les items de nourriture
+        zone.isFood = item.src === 'kitchen/food.png' || 
+                      item.src === 'bedroom/bacon_dish.png' || 
+                      item.src === 'bedroom/burrito.png'
+        
         this.attachInteractablePhysics(zone)
         this.interactables.push(zone)
         this.ensureCatCollision(zone)
+        
+        // ✅ Tracker les items de nourriture
+        if (zone.isFood) {
+            this.foodItems.push(zone)
+        }
+        
         return zone
     }
 
-    // ✅ KEY FIX: Proper physics attachment
     attachInteractablePhysics(zone) {
         if (!zone) return
 
@@ -728,10 +812,19 @@ export default class GameScene extends Scene {
         return zone.movableSprite
     }
 
-    // ✅ SIMPLIFIED: Keep body active so the cat still collides with the object
     pickUpInteractable(zone) {
         if (!zone) return
-        if (zone.isMovable === false) return
+        if (zone.isMovable === false) {
+            // ✅ Message drôle pour les objets non-déplaçables
+            this.catchPrompt.setText('C\'est trop lourd... Tu n\'as pas la force!')
+            this.catchPrompt.setVisible(true)
+            
+            // Masquer le message après 2 secondes
+            this.time.delayedCall(2000, () => {
+                this.catchPrompt.setVisible(false)
+            })
+            return
+        }
         if (this.dialogueActive) {
             this.endDialogue()
         }
@@ -739,13 +832,11 @@ export default class GameScene extends Scene {
         const sprite = this.createMovableSpriteForZone(zone)
         this.carriedInteractable = zone
         
-        // ✅ Détruire le collider joueur
         if (zone.playerCollider) {
             zone.playerCollider.destroy()
             zone.playerCollider = null
         }
         
-        // ✅ Garder le body actif pour préserver la collision avec le chat
         if (zone.body) {
             zone.body.enable = true
             zone.body.setAllowGravity(false)
@@ -809,7 +900,6 @@ export default class GameScene extends Scene {
         }
     }
 
-    // ✅ SIMPLIFIED: Just re-enable the zone physics
     placeCarriedObject() {
         if (!this.carriedInteractable) return
 
@@ -827,7 +917,6 @@ export default class GameScene extends Scene {
         if (typeof sprite.setFillStyle === 'function') sprite.setFillStyle(0x87ceeb, 0.35)
         sprite.setAlpha(0.9)
 
-        // ✅ Juste réactiver la physique de la zone
         this.attachInteractablePhysics(zone)
 
         this.carriedInteractable = null
@@ -841,6 +930,7 @@ export default class GameScene extends Scene {
         const width = zone.objectWidth
         const height = zone.objectHeight
 
+        // ✅ Créer la zone candidate du placement
         const candidate = new Phaser.Geom.Rectangle(
             centerX - width / 2,
             centerY - height / 2,
@@ -848,15 +938,18 @@ export default class GameScene extends Scene {
             height
         )
 
+        // ✅ Vérifier les limites de la pièce avec un petit padding
+        const PADDING = 10  // ✅ Petit padding pour pas coller aux murs
         if (
-            candidate.left < ROOM_BOUNDS.left ||
-            candidate.right > ROOM_BOUNDS.right ||
-            candidate.top < ROOM_BOUNDS.top ||
-            candidate.bottom > ROOM_BOUNDS.bottom
+            candidate.left < ROOM_BOUNDS.left + PADDING ||
+            candidate.right > ROOM_BOUNDS.right - PADDING ||
+            candidate.top < ROOM_BOUNDS.top + PADDING ||
+            candidate.bottom > ROOM_BOUNDS.bottom - PADDING
         ) {
             return false
         }
 
+        // ✅ Vérifier les collisions avec les murs de la map
         const wallGroup = manager.getWallGroup(this, 'room1')
         const walls = wallGroup?.getChildren ? wallGroup.getChildren() : []
         for (const wall of walls) {
@@ -868,13 +961,17 @@ export default class GameScene extends Scene {
             }
         }
 
+        // ✅ Vérifier les collisions avec les AUTRES objets (avec padding pour éviter de coller)
+        const OBJECT_PADDING = 8  // ✅ Padding entre les objets
         for (const otherZone of this.interactables) {
             if (!otherZone || otherZone === zone) continue
+            
+            // ✅ Créer la hitbox de l'autre objet avec padding
             const otherRect = new Phaser.Geom.Rectangle(
-                otherZone.x - (otherZone.objectWidth / 2),
-                otherZone.y - (otherZone.objectHeight / 2),
-                otherZone.objectWidth,
-                otherZone.objectHeight
+                otherZone.x - (otherZone.objectWidth / 2) - OBJECT_PADDING,
+                otherZone.y - (otherZone.objectHeight / 2) - OBJECT_PADDING,
+                otherZone.objectWidth + OBJECT_PADDING * 2,
+                otherZone.objectHeight + OBJECT_PADDING * 2
             )
             if (Phaser.Geom.Intersects.RectangleToRectangle(candidate, otherRect)) {
                 return false
@@ -946,12 +1043,10 @@ export default class GameScene extends Scene {
         this.introTitle.setVisible(false)
         this.introText.setVisible(false)
         this.introHint.setVisible(false)
-        // Lancer immédiatement un glitch caméra à la fin de l'intro
         try {
             CameraGlitch.apply(this.cameras.main, this, { duration: 420, intensity: 0.02, jitter: 10, rgb: 380 })
         } catch (e) { }
 
-        // Puis démarrer le répéteur toutes les 10s
         if (!this.cameraGlitchRepeater) {
             this.cameraGlitchRepeater = this.time.addEvent({
                 delay: 10000,
@@ -1017,4 +1112,84 @@ export default class GameScene extends Scene {
 
         this.scene.start('GameOverScene')
     }
-}
+
+    // ✅ NOUVEAU: Vérifier si le chat collecte de la nourriture
+    checkCatFoodCollision() {
+        if (!this.cat || this.foodItems.length === 0) return
+
+        // Parcourir les items de nourriture
+        for (let i = this.foodItems.length - 1; i >= 0; i--) {
+            const food = this.foodItems[i]
+            
+            // Vérifier la distance chat-nourriture
+            const distance = Phaser.Math.Distance.Between(
+                this.cat.x, this.cat.y,
+                food.x, food.y
+            )
+
+            // ✅ Si le chat est à moins de 30px de la nourriture, il la collecte
+            if (distance < 30) {
+                this.foodCollected++
+                
+                console.log(`🐱 Le chat a mangé ! (${this.foodCollected}/3)`)
+                
+                // Afficher message temporaire
+                this.catchPrompt.setText(`Le chat a mangé ! (${this.foodCollected}/3)`)
+                this.catchPrompt.setVisible(true)
+                this.time.delayedCall(1500, () => {
+                    this.catchPrompt.setVisible(false)
+                })
+                
+                // Supprimer l'item visuel
+                if (food.movableSprite && food.createdMovableSprite) {
+                    food.movableSprite.destroy()
+                    food.movableSprite = null
+                }
+                
+                // Retirer de la liste des interactables et foodItems
+                const idx = this.interactables.indexOf(food)
+                if (idx !== -1) {
+                    this.interactables.splice(idx, 1)
+                }
+                this.foodItems.splice(i, 1)
+                
+                // ✅ Si 3 items mangés, le chat devient agressif (+ rapide, moins timide)
+                if (this.foodCollected >= 3 && this.cat) {
+                    this.cat.fleeDistance = 100  // ✅ Le chat fuit moins loin
+                    this.cat.baseSpeed = 200  // ✅ Le chat est plus rapide
+                    this.cat.fleeSpeed = 250  // ✅ Fuite très agressive
+                    console.log('🔥 Le chat est devenu AGRESSIF!')
+                }
+            }
+        }
+    }
+
+    // ✅ Afficher un message rigolo temporaire
+    showFunnyMessage(text) {
+        // ✅ Détruire le message précédent s'il existe
+        if (this.funnyMessageText) {
+            this.funnyMessageText.destroy()
+        }
+
+        // ✅ Créer le nouveau message
+        this.funnyMessageText = this.add.text(400, 100, text, {
+            fontFamily: 'Arial',
+            fontSize: '20px',
+            color: '#ff6b6b',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            padding: { x: 15, y: 10 },
+            align: 'center'
+        })
+        this.funnyMessageText.setOrigin(0.5, 0)
+        this.funnyMessageText.setScrollFactor(0)
+        this.funnyMessageText.setDepth(1100)
+
+        // ✅ Faire disparaître le message après 2 secondes
+            this.time.delayedCall(2000, () => {
+                if (this.funnyMessageText) {
+                    this.funnyMessageText.destroy()
+                    this.funnyMessageText = null
+                }
+            })
+        }
+    }
